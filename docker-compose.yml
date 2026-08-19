@@ -1,0 +1,24 @@
+services:
+  app:
+    build: .
+    container_name: video-download-manager
+    ports:
+      - "8787:8787"
+    environment:
+      # 最大并发下载任务数
+      MAX_CONCURRENT: "3"
+      # 生产环境建议关闭模拟源（sim:// 协议）
+      ENABLE_SIMULATE: "false"
+      # 可选：限制下载速度（如 8M）
+      MAX_SPEED: ""
+      # 可选：默认质量/格式
+      DEFAULT_QUALITY: "best"
+      DEFAULT_FORMAT: "mp4"
+    volumes:
+      - vdm-data:/app/data
+      - vdm-downloads:/app/downloads
+    restart: unless-stopped
+
+volumes:
+  vdm-data:
+  vdm-downloads:

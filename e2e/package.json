@@ -1,0 +1,13 @@
+{
+  "name": "e2e",
+  "version": "1.0.0",
+  "private": true,
+  "description": "端到端浏览器测试（使用系统 Edge，无需下载 Chromium）",
+  "type": "module",
+  "scripts": {
+    "test": "node run-tests.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.49.1"
+  }
+}

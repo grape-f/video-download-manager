@@ -1,0 +1,35 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+server/dist/
+web/dist/
+
+# runtime data
+data/
+downloads/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# local binaries (ffmpeg)
+bin/
+
+# env
+.env
+.env.local
+
+# logs
+*.log
+npm-debug.log*
+
+# misc
+.DS_Store
+.vite/
+.idea/
+.vscode/
+
+# e2e test artifacts
+e2e/screenshots/
