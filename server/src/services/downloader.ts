@@ -4,6 +4,7 @@ import path from 'node:path';
 import { config } from '../config';
 import type { DownloadTask, Settings, TaskProgress } from '../types';
 import { AppError, friendlyYtDlpError } from '../utils/errors';
+import { resolveBilibiliMedia, resolveTwitterMedia } from './native';
 
 export type AbortReason = 'paused' | 'cancelled' | 'removed';
 
@@ -77,7 +78,114 @@ export async function runDownload(
   if (task.simulate) {
     return runSimulatedDownload(task, handlers, controller);
   }
+  if (task.platform === 'x' || task.platform === 'bilibili') {
+    return runNativeDownload(task, settings, handlers, controller);
+  }
+  // 图片直链 / Instagram 图片（已有直链）：直接下载
+  if (task.platform === 'image' || (task.platform === 'instagram' && task.directUrl)) {
+    return runDirectUrlDownload(task, task.directUrl || task.url, settings, handlers, controller, null);
+  }
   return runYtDlpDownload(task, settings, handlers, controller);
+}
+
+/** X / Bilibili：通过无需登录的原生 API 解析直链后下载 */
+async function runNativeDownload(
+  task: DownloadTask,
+  settings: Settings,
+  handlers: DownloadHandlers,
+  controller: DownloadAbortController,
+): Promise<DownloadResult> {
+  let directUrl = task.directUrl;
+  let referer: string | null = null;
+
+  if (task.platform === 'x') {
+    const m = await resolveTwitterMedia(task.url);
+    directUrl = m?.directUrl ?? directUrl;
+  } else if (task.platform === 'bilibili') {
+    const m = await resolveBilibiliMedia(task.url, task.resolution);
+    directUrl = m?.directUrl ?? directUrl;
+    referer = 'https://www.bilibili.com/';
+  }
+
+  if (!directUrl) {
+    throw new AppError(
+      'DOWNLOAD',
+      task.platform === 'x'
+        ? '未能解析到推文视频直链（该推文可能没有视频，或需要登录查看）'
+        : '未能解析到下载直链',
+      422,
+    );
+  }
+
+  return runDirectUrlDownload(task, directUrl, settings, handlers, controller, referer);
+}
+
+function runDirectUrlDownload(
+  task: DownloadTask,
+  directUrl: string,
+  settings: Settings,
+  handlers: DownloadHandlers,
+  controller: DownloadAbortController,
+  referer: string | null,
+): Promise<DownloadResult> {
+  return new Promise((resolve, reject) => {
+    const outputDir = task.outputDir || settings.downloadDir;
+    const outTemplate = path.join(outputDir, `${task.id}.%(ext)s`);
+    const args = [
+      '--newline',
+      '--no-playlist',
+      '--no-warnings',
+      '--no-mtime',
+      '--progress',
+      '--progress-template',
+      'download:%(progress.downloaded_bytes)s/%(progress.total_bytes)s/%(progress.total_bytes_estimate)s/%(progress.speed)s/%(progress.eta)s',
+      '--socket-timeout',
+      String(Math.max(10, Math.floor(settings.requestTimeoutMs / 1000))),
+      '-o',
+      outTemplate,
+    ];
+    if (referer) {
+      args.push('--add-header', `Referer: ${referer}`);
+    }
+    args.push(directUrl);
+
+    const child = spawn(config.ytdlpPath, args, { windowsHide: true });
+    handlers.onChild(child);
+    let stderr = '';
+
+    child.stdout.on('data', (d: Buffer) => {
+      for (const line of d.toString().split(/\r?\n/)) {
+        if (!line) continue;
+        if (line.startsWith('download:')) {
+          const p = parseProgressLine(line);
+          if (p) handlers.onProgress(p);
+        } else {
+          handlers.onLog(line);
+        }
+      }
+    });
+    child.stderr.on('data', (d: Buffer) => {
+      stderr = (stderr + d.toString()).slice(-16384);
+    });
+    child.on('error', (err) => {
+      handlers.onChild(null);
+      reject(new AppError('SPAWN', `无法启动 yt-dlp：${err.message}`, 500));
+    });
+    child.on('close', (code) => {
+      handlers.onChild(null);
+      if (controller.aborted) {
+        reject(new DownloadAbortedError(controller.reason || 'cancelled'));
+        return;
+      }
+      if (code === 0) {
+        const found = findOutputFile(outputDir, task.id);
+        if (found) resolve(found);
+        else reject(new AppError('OUTPUT', '下载完成但未找到输出文件', 500));
+      } else {
+        reject(new AppError('DOWNLOAD', friendlyYtDlpError(stderr), 422));
+      }
+    });
+  });
 }
 
 function runYtDlpDownload(

@@ -2,7 +2,8 @@ import { spawn } from 'node:child_process';
 import { config } from '../config';
 import type { ResolutionOption, VideoInfo } from '../types';
 import { AppError, friendlyYtDlpError } from '../utils/errors';
-import { detectPlatform } from '../utils/platform';
+import { detectPlatform, isImageUrl } from '../utils/platform';
+import { resolveBilibiliMedia, resolveInstagramMedia, resolveTwitterMedia, type ResolvedMedia } from './native';
 
 interface ProcessResult {
   stdout: string;
@@ -115,11 +116,67 @@ function simulateInfo(url: string): VideoInfo {
   };
 }
 
+function hostOf(url: string): string {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return 'unknown';
+  }
+}
+
+function filenameFromUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    const base = u.pathname.split('/').filter(Boolean).pop() || 'image';
+    return decodeURIComponent(base) || 'image';
+  } catch {
+    return 'image';
+  }
+}
+
+function imageInfo(url: string): VideoInfo {
+  return {
+    title: filenameFromUrl(url),
+    thumbnail: url,
+    platform: 'image',
+    duration: null,
+    uploader: hostOf(url),
+    webpageUrl: url,
+    resolutions: [],
+    directUrl: url,
+    isImage: true,
+  };
+}
+
 export async function extractInfo(url: string): Promise<VideoInfo> {
   const trimmed = url.trim();
   if (config.enableSimulate && /^sim:\/\//i.test(trimmed)) {
     return simulateInfo(trimmed);
   }
+
+  // 图片直链：直接作为下载地址
+  if (isImageUrl(trimmed)) {
+    return imageInfo(trimmed);
+  }
+
+  // X / Bilibili 优先走无需登录的原生解析
+  const platformKey = detectPlatform(trimmed)?.key;
+  if (platformKey === 'x') {
+    const m = await resolveTwitterMedia(trimmed);
+    if (m) return resolvedToInfo(m, 'x', trimmed);
+    throw new AppError('YTDLP', '该推文中没有找到视频或图片（可能是纯文字推文，或 X 需要登录后才能查看媒体）', 422);
+  }
+  if (platformKey === 'bilibili') {
+    const m = await resolveBilibiliMedia(trimmed);
+    if (m) return resolvedToInfo(m, 'bilibili', trimmed);
+    // 原生解析失败时回退 yt-dlp（会给出明确的 412 风控提示）
+  }
+  if (platformKey === 'instagram') {
+    const m = await resolveInstagramMedia(trimmed);
+    if (m) return resolvedToInfo(m, 'instagram', trimmed);
+    // oEmbed 仅能解析图片；视频/多图或失败时回退 yt-dlp
+  }
+
   const args = [
     '--dump-single-json',
     '--no-playlist',
@@ -136,4 +193,18 @@ export async function extractInfo(url: string): Promise<VideoInfo> {
     throw new AppError('PARSE', '解析视频信息失败，平台返回数据无效', 422);
   }
   return mapInfo(parsed, trimmed);
+}
+
+function resolvedToInfo(m: ResolvedMedia, platform: string, url: string): VideoInfo {
+  return {
+    title: m.title,
+    thumbnail: m.thumbnail,
+    platform,
+    duration: m.duration,
+    uploader: m.author,
+    webpageUrl: url,
+    resolutions: m.resolutions,
+    directUrl: m.directUrl,
+    isImage: m.isImage,
+  };
 }

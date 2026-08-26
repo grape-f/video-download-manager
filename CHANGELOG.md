@@ -2,6 +2,23 @@
 
 本项目遵循[语义化版本](https://semver.org/lang/zh-CN/)（Semantic Versioning）。
 
+## [1.1.0] - 2026-08-16
+
+功能扩展版本。
+
+### 新增
+
+- **图片下载**：支持图片直链（jpg / png / webp / gif / bmp / avif / svg / ico）解析、预览与下载
+- **X (Twitter) 原生解析（无需登录）**：通过 FixTweet / vxTwitter 镜像解析视频与图片推文
+- **Bilibili 原生解析（无需登录）**：通过公开 API + WBI 签名直接取流，解决此前 412 风控导致的解析失败
+- 下载任务支持直接 URL（`directUrl`）下载路径，数据库结构同步迁移
+
+### 修复
+
+- Bilibili 解析失败（HTTP 412 风控）——改为原生 API + WBI 签名
+- X 视频推文「No video could be found」——改用镜像 API 解析
+- X 图片推文无法解析——补充 FixTweet photos / vxTwitter 图片处理
+
 ## [1.0.0] - 2026-08-16
 
 首个稳定版本：功能完整的「在线视频下载管理器」。

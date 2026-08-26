@@ -21,6 +21,8 @@ export interface VideoInfo {
   uploader: string | null;
   webpageUrl: string;
   resolutions: ResolutionOption[];
+  directUrl?: string | null;
+  isImage?: boolean;
 }
 
 export interface DownloadTask {
@@ -44,6 +46,7 @@ export interface DownloadTask {
   filePath: string | null;
   outputDir: string | null;
   simulate: boolean;
+  directUrl: string | null;
   createdAt: number;
   updatedAt: number;
   startedAt: number | null;

@@ -31,6 +31,7 @@ const TASK_COLUMNS = [
   'started_at',
   'completed_at',
   'retries',
+  'direct_url',
 ] as const;
 
 export function initDb(): DatabaseSync {
@@ -65,9 +66,15 @@ export function initDb(): DatabaseSync {
       updated_at INTEGER NOT NULL,
       started_at INTEGER,
       completed_at INTEGER,
-      retries INTEGER DEFAULT 0
+      retries INTEGER DEFAULT 0,
+      direct_url TEXT
     );
   `);
+  // 迁移：为旧数据库补充 direct_url 列
+  const cols = db.prepare('PRAGMA table_info(tasks)').all() as Array<{ name: string }>;
+  if (!cols.some((c) => c.name === 'direct_url')) {
+    db.exec('ALTER TABLE tasks ADD COLUMN direct_url TEXT');
+  }
   db.exec(`
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,
@@ -111,6 +118,7 @@ function rowToTask(row: TaskRow): DownloadTask {
     startedAt: row.started_at != null ? Number(row.started_at) : null,
     completedAt: row.completed_at != null ? Number(row.completed_at) : null,
     retries: Number(row.retries) || 0,
+    directUrl: row.direct_url != null ? String(row.direct_url) : null,
   };
 }
 
@@ -126,7 +134,8 @@ export function upsertTask(task: DownloadTask): void {
       total_bytes=excluded.total_bytes, speed_bytes=excluded.speed_bytes, eta_seconds=excluded.eta_seconds,
       error=excluded.error, file_path=excluded.file_path, output_dir=excluded.output_dir,
       simulate=excluded.simulate, created_at=excluded.created_at, updated_at=excluded.updated_at,
-      started_at=excluded.started_at, completed_at=excluded.completed_at, retries=excluded.retries`;
+      started_at=excluded.started_at, completed_at=excluded.completed_at, retries=excluded.retries,
+      direct_url=excluded.direct_url`;
   d.prepare(sql).run(
     task.id,
     task.url,
@@ -153,6 +162,7 @@ export function upsertTask(task: DownloadTask): void {
     task.startedAt,
     task.completedAt,
     task.retries,
+    task.directUrl,
   );
 }
 

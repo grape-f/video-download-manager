@@ -6,7 +6,7 @@ import { config } from '../config';
 import { getSettings } from '../settings';
 import { listTasks, upsertTask, deleteTask as dbDeleteTask } from '../db';
 import { bus } from '../bus';
-import { detectPlatform, isValidHttpUrl } from '../utils/platform';
+import { detectPlatform, imageExtFromUrl, isValidHttpUrl } from '../utils/platform';
 import { AppError } from '../utils/errors';
 import {
   runDownload,
@@ -66,22 +66,23 @@ class TaskQueue {
 
   async addTask(input: CreateTaskInput): Promise<DownloadTask> {
     const url = (input.url || '').trim();
-    if (!url) throw new AppError('INVALID_URL', '请输入视频链接', 400);
+    if (!url) throw new AppError('INVALID_URL', '请输入视频或图片链接', 400);
 
     const platform = detectPlatform(url);
     if (!platform) {
       if (isValidHttpUrl(url)) throw new AppError('UNSUPPORTED', '当前平台不支持', 400);
-      throw new AppError('INVALID_URL', 'URL 格式错误，请输入有效的视频链接', 400);
+      throw new AppError('INVALID_URL', 'URL 格式错误，请输入有效的视频或图片链接', 400);
     }
     if (platform.key === 'simulated' && !config.enableSimulate) {
       throw new AppError('UNSUPPORTED', '模拟源已禁用', 400);
     }
     if (platform.key !== 'simulated' && !isValidHttpUrl(url)) {
-      throw new AppError('INVALID_URL', 'URL 格式错误，请输入有效的视频链接', 400);
+      throw new AppError('INVALID_URL', 'URL 格式错误，请输入有效的视频或图片链接', 400);
     }
 
     const settings = getSettings();
     const now = Date.now();
+    const isImage = platform.key === 'image' || input.info?.isImage === true;
     const task: DownloadTask = {
       id: randomUUID(),
       url,
@@ -90,9 +91,9 @@ class TaskQueue {
       thumbnail: input.info?.thumbnail ?? null,
       author: input.info?.uploader ?? null,
       duration: input.info?.duration ?? null,
-      resolution: input.resolution || settings.defaultQuality,
-      format: input.format || settings.defaultFormat,
-      filesize: pickFilesize(input.info, input.resolution),
+      resolution: isImage ? null : input.resolution || settings.defaultQuality,
+      format: isImage ? imageExtFromUrl(input.info?.directUrl || url) : input.format || settings.defaultFormat,
+      filesize: isImage ? null : pickFilesize(input.info, input.resolution),
       status: 'waiting',
       progress: 0,
       downloadedBytes: 0,
@@ -103,6 +104,7 @@ class TaskQueue {
       filePath: null,
       outputDir: settings.downloadDir,
       simulate: platform.key === 'simulated',
+      directUrl: input.info?.directUrl ?? null,
       createdAt: now,
       updatedAt: now,
       startedAt: null,

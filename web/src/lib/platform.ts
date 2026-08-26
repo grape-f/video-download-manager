@@ -54,6 +54,12 @@ const PLATFORM_MAP: Record<string, PlatformVisual> = {
     color: '#6366f1',
     badgeClass: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-400',
   },
+  image: {
+    key: 'image',
+    name: '图片',
+    color: '#14b8a6',
+    badgeClass: 'bg-teal-100 text-teal-700 dark:bg-teal-500/15 dark:text-teal-400',
+  },
   unknown: {
     key: 'unknown',
     name: '未知',

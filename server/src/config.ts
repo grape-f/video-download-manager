@@ -18,7 +18,7 @@ function toBool(value: string | undefined, fallback: boolean): boolean {
 }
 
 export const config = {
-  version: '1.0.0',
+  version: '1.1.0',
   port: toNumber(process.env.PORT, 8787),
   host: process.env.HOST || '0.0.0.0',
   projectRoot: PROJECT_ROOT,

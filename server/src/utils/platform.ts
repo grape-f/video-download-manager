@@ -38,10 +38,34 @@ export function isSupportedPlatform(key: string): boolean {
   return (SUPPORTED_PLATFORMS as readonly string[]).includes(key);
 }
 
+const IMAGE_EXT_RE = /\.(jpe?g|png|webp|gif|bmp|avif|svg|ico)(?:[?#]|$)/i;
+
+export function isImageUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return false;
+    return IMAGE_EXT_RE.test(u.pathname);
+  } catch {
+    return false;
+  }
+}
+
+export function imageExtFromUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    const m = /\.(jpe?g|png|webp|gif|bmp|avif|svg|ico)(?:[?#]|$)/i.exec(u.pathname);
+    if (m) return m[1].toLowerCase() === 'jpeg' ? 'jpg' : m[1].toLowerCase();
+  } catch {
+    /* ignore */
+  }
+  return 'jpg';
+}
+
 export function detectPlatform(url: string): PlatformMeta | null {
   const trimmed = (url || '').trim();
   if (!trimmed) return null;
   if (/^sim:\/\//i.test(trimmed)) return { key: 'simulated', name: '模拟源 (Simulated)' };
+  if (isImageUrl(trimmed)) return { key: 'image', name: '图片' };
   for (const p of PATTERNS) {
     if (p.re.test(trimmed)) return { key: p.key, name: p.name };
   }
