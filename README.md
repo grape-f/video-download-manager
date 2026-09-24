@@ -2,6 +2,8 @@
 
 一个功能完整、界面现代的「在线视频下载管理器」Web 应用。粘贴公开视频链接，系统自动识别平台并创建下载任务，支持多任务并发、断点续传、任务持久化与崩溃恢复，并提供 Dashboard、下载历史与设置页面。
 
+> 当前版本：**v1.2.0**（2026-09-24） · 历史版本见 [版本历史](#版本历史) 和 [CHANGELOG.md](./CHANGELOG.md)
+
 > ⚠️ **合规声明**：本项目仅用于下载你有权访问、拥有下载权或已获得授权的公开视频资源。不破解 DRM、不绕过付费墙、登录限制或访问控制。当平台因官方限制无法直接下载时，系统会给出清晰的错误提示，而非尝试绕过限制。
 
 ---
@@ -11,6 +13,8 @@
 - **多平台支持**：YouTube、Bilibili、Vimeo、X (Twitter)、TikTok、Instagram
 - **智能解析**：自动识别平台、校验 URL、获取标题/缩略图/时长/作者/可用分辨率/文件大小
 - **2K 输出**：视频与图片都可选择 1440p（2K）目标；源清晰度不足且系统有 ffmpeg 时自动放大到目标高度
+- **登录态支持**：支持 yt-dlp cookies（cookies.txt / 指定浏览器 / 自动探测本机浏览器），并提供 Edge 扩展登录同步，避免 Chromium cookies 数据库文件锁
+- **YouTube 兼容性**：自动传入 JavaScript 运行时与 EJS 挑战求解组件，修复 `The page needs to be reloaded` / `Signature solving failed`
 - **任务队列**：Waiting / Parsing / Downloading / Paused / Completed / Failed / Cancelled 七种状态
 - **并发控制**：默认 3 个并发，可配置 1/2/3/5/10，超出自动进入等待队列
 - **实时进度**：进度条、下载速度、剩余时间，基于 SSE 实时推送
@@ -25,6 +29,72 @@
 
 ---
 
+## 版本历史
+
+| 版本 | 发布日期 | 重点 |
+| --- | --- | --- |
+| v1.2.0 | 2026-09-24 | 2K 目标清晰度、cookies 登录态、Edge 扩展同步、YouTube JS/EJS 修复 |
+| v1.1.0 | 2026-08-16 | 图片直链下载、X / Bilibili 原生解析 |
+| v1.0.0 | 2026-08-16 | 核心视频下载管理器 |
+
+完整变更记录见 [CHANGELOG.md](./CHANGELOG.md)。
+
+### v1.2.0（2026-09-24）
+
+**新增**
+
+- **2K / 1440p 目标清晰度**：视频与图片都可选择 1440p（2K）；源清晰度不足且检测到 ffmpeg 时，用 ffmpeg lanczos 放大到目标高度，缺少 ffmpeg 时保留源清晰度
+- **yt-dlp 登录态支持**：支持 `YTDLP_COOKIES`（Netscape cookies.txt）、`YTDLP_COOKIES_FROM_BROWSER`（指定浏览器）和 `YTDLP_COOKIES_AUTO`（自动探测本机浏览器，默认开启）
+- **Edge 扩展登录同步**：新增 `browser-extension/` MV3 扩展，通过本地配对 token 把 Edge 登录 cookies 同步到 `data/extension-cookies.txt`，避免 Chromium cookies 数据库文件锁；设置页新增「Cookie 同步」卡片
+- **YouTube JavaScript 运行时与 EJS 支持**：解析/下载自动传 `--js-runtimes node:<当前 Node 路径>` 和 `--remote-components ejs:github`，新增 `YTDLP_JS_RUNTIME`、`YTDLP_REMOTE_COMPONENTS` 配置
+- 设置页与任务列表统一显示 2K/4K 质量标签；新增登录凭据来源显示
+
+**修复**
+
+- YouTube「The page needs to be reloaded / Signature solving failed / n challenge solving failed」导致下载失败
+- 读取 Edge/Chrome cookies 失败时的错误提示不明确；现在区分数据库被占用、解密失败、profile 不存在、权限不足
+- 图片选择「原图」时被默认质量覆盖的问题
+- Bilibili 2K 目标误拉 4K 源且不做下采样的问题
+- e2e 测试选择器与 v1.1.0 文案不同步的问题，并新增 2K 用例
+
+**变更**
+
+- 版本号 1.1.0 → 1.2.0
+- 下载产物仍保存在 `downloads/`，扩展同步的 cookies 与配对 token 保存在 `data/`，均不进入 git
+
+### v1.1.0（2026-08-16）
+
+**新增**
+
+- **图片直链下载**：支持 jpg / png / webp / gif / bmp / avif / svg / ico 解析、预览与下载
+- **X (Twitter) 原生解析（无需登录）**：通过 FixTweet / vxTwitter 镜像解析视频与图片推文
+- **Bilibili 原生解析（无需登录）**：通过公开 API + WBI 签名直接取流
+- 下载任务支持直接 URL（`directUrl`），数据库结构同步迁移
+
+**修复**
+
+- Bilibili 解析失败（HTTP 412 风控）——改为原生 API + WBI 签名
+- X 视频推文「No video could be found」——改用镜像 API 解析
+- X 图片推文无法解析——补充 FixTweet photos / vxTwitter 图片处理
+
+### v1.0.0（2026-08-16）
+
+**新增**
+
+- 首个稳定版本：YouTube、Bilibili、Vimeo、X (Twitter)、TikTok、Instagram
+- URL 解析、平台自动识别、视频预览卡片（标题 / 缩略图 / 时长 / 作者 / 分辨率 / 大小）
+- 七种任务状态、多任务并发队列、断点续传与服务重启恢复
+- 暂停 / 继续 / 取消 / 重试 / 删除；下载历史、Dashboard 统计、设置页
+- 响应式布局、离线模拟源 `sim://`、Docker 部署
+
+**修复**
+
+- 首个稳定版本，无历史修复项
+
+> 旧版本使用提示：不同版本请使用独立的 `DATA_DIR`、`DOWNLOAD_DIR` 和端口；v1.1.0 / v1.0.0 不含 cookies、2K 和 YouTube JS/EJS 支持，可在新版 yt-dlp 的 `yt-dlp.conf` 中补 `--cookies`、`--js-runtimes`、`--remote-components`。
+
+---
+
 ## 技术栈
 
 | 层 | 技术 |
@@ -33,6 +103,7 @@
 | 后端 | Node.js (≥ 22.5) · TypeScript · Express 4 |
 | 数据 | SQLite（Node 内置 `node:sqlite`，零原生依赖） |
 | 下载引擎 | [yt-dlp](https://github.com/yt-dlp/yt-dlp) + ffmpeg（高清音视频合并） |
+| 浏览器扩展 | Edge Manifest V3（登录 cookies 同步） |
 | 实时通信 | Server-Sent Events (SSE) |
 | 部署 | Docker / docker-compose |
 
@@ -46,16 +117,20 @@
 
 > Windows 快速安装：`winget install Gyan.FFmpeg`；macOS：`brew install ffmpeg yt-dlp`；Linux：`apt install ffmpeg` + `pip install yt-dlp`。
 
+> YouTube 现在还需要 JavaScript 运行时和 EJS 挑战求解组件。项目会默认使用当前运行后端的 Node 可执行文件，并通过 `--remote-components ejs:github` 获取组件；无法访问 GitHub 时执行 `python -m pip install -U "yt-dlp[default]"`。
+
 ---
 
 ## 安装方法
 
 ```bash
-git clone <your-repo-url>
-cd shipin_xiazai
-npm install
+git clone https://github.com/grape-f/video-download-manager.git
+cd video-download-manager
+npm ci
 cp .env.example .env   # 按需修改环境变量
 ```
+
+> 需要旧版本：`git checkout v1.1.0`（或 `v1.0.0`），然后重新执行 `npm ci`。不同版本请使用独立的 `PORT`、`DATA_DIR` 和 `DOWNLOAD_DIR`，避免任务数据互相覆盖。
 
 ---
 
@@ -126,7 +201,7 @@ docker compose up -d
 
 ---
 
-## Edge 扩展登录同步
+## Edge 扩展登录同步（v1.2.0+）
 
 如果浏览器是 Edge，推荐用项目里的 `browser-extension/` 扩展把登录 cookies 同步给本地下载器。它通过浏览器自己的 cookie 接口读取，不依赖直接打开 Edge 的 `Cookies` 数据库文件，因此 Edge 正在运行也能用。
 
