@@ -2,15 +2,6 @@
 
 本项目遵循[语义化版本](https://semver.org/lang/zh-CN/)（Semantic Versioning）。
 
-## [1.2.2] - 2026-09-24
-
-Windows 便携包与自动发布。
-
-### 新增
-
-- **Windows 便携包**：新增 `packaging/start.bat`、`scripts/package-release.mjs` 和 `.github/workflows/release.yml`，发布包内置 Node、yt-dlp、ffmpeg、前后端构建产物、Edge 扩展和启动脚本，下载解压后双击 `start.bat` 即可运行
-- **自动发布**：推送 `v*` tag 时自动构建 `video-download-manager-vX.Y.Z-win-x64.zip`，上传到 GitHub Releases，并生成 `SHA256SUMS.txt`
-
 ## [1.2.1] - 2026-09-24
 
 修复下载进度显示。
@@ -18,6 +9,10 @@ Windows 便携包与自动发布。
 ### 修复
 
 - 修复下载过程中进度一直为 0、直到完成才一次性跳到 100% 的问题：yt-dlp 的 `--progress-template download:...` 中 `download:` 是模板类型名，不会出现在输出里；现在模板里增加了 `VDMPROGRESS:` 输出标记，解析器按该标记实时读取下载字节、总大小、速度和剩余时间
+
+### 发布
+
+- Windows 便携包：内置 Node、yt-dlp、ffmpeg、前后端构建产物、Edge 扩展和 `start.bat`，可从 Releases 下载解压后直接运行
 
 ## [1.2.0] - 2026-09-24
 
