@@ -160,7 +160,18 @@ copyInto(resolvedBundle, 'README-Windows.txt', path.join(projectRoot, 'packaging
 // Production dependencies
 if (!args.skipNodeModules) {
   requirePath(args.nodeModules, 'node_modules');
-  copyInto(resolvedBundle, 'node_modules', args.nodeModules);
+  const nodeModulesTarget = path.join(resolvedBundle, 'node_modules');
+  fs.mkdirSync(nodeModulesTarget, { recursive: true });
+  fs.cpSync(args.nodeModules, nodeModulesTarget, {
+    recursive: true,
+    dereference: true,
+    filter: (source) => {
+      const relative = path.relative(args.nodeModules, source);
+      if (!relative) return true;
+      const first = relative.split(path.sep)[0];
+      return first !== 'server' && first !== 'web' && first !== '.bin';
+    },
+  });
 }
 
 fs.writeFileSync(path.join(resolvedBundle, 'version.txt'), `${version}\n`, 'utf8');
