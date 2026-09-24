@@ -35,10 +35,8 @@
 | --- | --- | --- |
 | v1.2.1 | 2026-09-24 | 修复下载进度一直为 0 的问题 |
 | v1.2.0 | 2026-09-24 | 2K 目标清晰度、cookies 登录态、Edge 扩展同步、YouTube JS/EJS 修复 |
-| v1.1.0 | 2026-08-16 | 图片直链下载、X / Bilibili 原生解析 |
-| v1.0.0 | 2026-08-16 | 核心视频下载管理器 |
 
-完整变更记录见 [CHANGELOG.md](./CHANGELOG.md)。
+README 只保留最近两个版本；更早版本的完整记录见 [CHANGELOG.md](./CHANGELOG.md)。
 
 ### v1.2.1（2026-09-24）
 
@@ -69,36 +67,7 @@
 - 版本号 1.1.0 → 1.2.0
 - 下载产物仍保存在 `downloads/`，扩展同步的 cookies 与配对 token 保存在 `data/`，均不进入 git
 
-### v1.1.0（2026-08-16）
-
-**新增**
-
-- **图片直链下载**：支持 jpg / png / webp / gif / bmp / avif / svg / ico 解析、预览与下载
-- **X (Twitter) 原生解析（无需登录）**：通过 FixTweet / vxTwitter 镜像解析视频与图片推文
-- **Bilibili 原生解析（无需登录）**：通过公开 API + WBI 签名直接取流
-- 下载任务支持直接 URL（`directUrl`），数据库结构同步迁移
-
-**修复**
-
-- Bilibili 解析失败（HTTP 412 风控）——改为原生 API + WBI 签名
-- X 视频推文「No video could be found」——改用镜像 API 解析
-- X 图片推文无法解析——补充 FixTweet photos / vxTwitter 图片处理
-
-### v1.0.0（2026-08-16）
-
-**新增**
-
-- 首个稳定版本：YouTube、Bilibili、Vimeo、X (Twitter)、TikTok、Instagram
-- URL 解析、平台自动识别、视频预览卡片（标题 / 缩略图 / 时长 / 作者 / 分辨率 / 大小）
-- 七种任务状态、多任务并发队列、断点续传与服务重启恢复
-- 暂停 / 继续 / 取消 / 重试 / 删除；下载历史、Dashboard 统计、设置页
-- 响应式布局、离线模拟源 `sim://`、Docker 部署
-
-**修复**
-
-- 首个稳定版本，无历史修复项
-
-> 旧版本使用提示：不同版本请使用独立的 `DATA_DIR`、`DOWNLOAD_DIR` 和端口；v1.1.0 / v1.0.0 不含 cookies、2K 和 YouTube JS/EJS 支持，可在新版 yt-dlp 的 `yt-dlp.conf` 中补 `--cookies`、`--js-runtimes`、`--remote-components`。
+> 旧版本使用提示：不同版本请使用独立的 `DATA_DIR`、`DOWNLOAD_DIR` 和端口；旧版本不含 cookies、2K 和 YouTube JS/EJS 支持，可在新版 yt-dlp 的 `yt-dlp.conf` 中补 `--cookies`、`--js-runtimes`、`--remote-components`。
 
 ---
 
