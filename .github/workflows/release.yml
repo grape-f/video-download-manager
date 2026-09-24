@@ -58,28 +58,15 @@ jobs:
           $ffmpegDir = (Get-Content "ffmpeg-bin.txt" -Raw).Trim()
           node scripts/package-release.mjs --platform win-x64 --node node.exe --ytdlp yt-dlp.exe --ffmpeg-dir "$ffmpegDir" --out release --skip-build
 
-      - name: SHA256
-        shell: pwsh
-        run: |
-          Get-ChildItem release\*.zip | ForEach-Object {
-            $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
-            "$hash  $($_.Name)" | Add-Content release\SHA256SUMS.txt
-          }
-          Get-Content release\SHA256SUMS.txt
-
       - name: Upload test artifact
         uses: actions/upload-artifact@v4
         with:
           name: windows-portable
-          path: |
-            release/*.zip
-            release/SHA256SUMS.txt
+          path: release/*.zip
 
       - name: Publish GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            release/*.zip
-            release/SHA256SUMS.txt
+          files: release/*.zip
           generate_release_notes: true
