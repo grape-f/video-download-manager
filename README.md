@@ -174,18 +174,6 @@ npm start       # 启动后端，由后端托管前端静态文件
 
 ---
 
-## Docker 部署
-
-```bash
-docker compose up -d
-```
-
-访问 **http://localhost:8787**。
-
-镜像在构建阶段安装 ffmpeg（apt）并下载 yt-dlp 独立二进制；`data` 与 `downloads` 通过命名卷持久化。
-
----
-
 ## 常见问题
 
 **Q：提示「缺少 ffmpeg，无法合并高清音视频」？**
