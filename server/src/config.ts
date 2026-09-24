@@ -23,7 +23,7 @@ const ytdlpRemoteComponentsEnv = process.env.YTDLP_REMOTE_COMPONENTS?.trim();
 const dataDir = path.resolve(PROJECT_ROOT, process.env.DATA_DIR || 'data');
 
 export const config = {
-  version: '1.2.1',
+  version: '1.2.2',
   port: toNumber(process.env.PORT, 8787),
   host: process.env.HOST || '0.0.0.0',
   projectRoot: PROJECT_ROOT,

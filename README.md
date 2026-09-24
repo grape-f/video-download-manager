@@ -2,7 +2,7 @@
 
 一个功能完整、界面现代的「在线视频下载管理器」Web 应用。粘贴公开视频链接，系统自动识别平台并创建下载任务，支持多任务并发、断点续传、任务持久化与崩溃恢复，并提供 Dashboard、下载历史与设置页面。
 
-> 当前版本：**v1.2.1**（2026-09-24） · 历史版本见 [版本历史](#版本历史) 和 [CHANGELOG.md](./CHANGELOG.md)
+> 当前版本：**v1.2.2**（2026-09-24） · 历史版本见 [版本历史](#版本历史) 和 [CHANGELOG.md](./CHANGELOG.md)
 
 > ⚠️ **合规声明**：本项目仅用于下载你有权访问、拥有下载权或已获得授权的公开视频资源。不破解 DRM、不绕过付费墙、登录限制或访问控制。当平台因官方限制无法直接下载时，系统会给出清晰的错误提示，而非尝试绕过限制。
 
@@ -33,11 +33,18 @@
 
 | 版本 | 发布日期 | 重点 |
 | --- | --- | --- |
+| v1.2.2 | 2026-09-24 | Windows 便携包与 GitHub Releases 自动发布 |
 | v1.2.1 | 2026-09-24 | 修复下载进度一直为 0 的问题 |
 | v1.2.0 | 2026-09-24 | 2K 目标清晰度、cookies 登录态、Edge 扩展同步、YouTube JS/EJS 修复 |
-| v1.1.0 | 2026-08-16 | 图片直链下载、X / Bilibili 原生解析 |
 
 README 只保留最近三个版本；更早版本的完整记录见 [CHANGELOG.md](./CHANGELOG.md)。
+
+### v1.2.2（2026-09-24）
+
+**新增**
+
+- **Windows 便携包**：内置 Node、yt-dlp、ffmpeg、前后端构建产物、Edge 扩展和 `start.bat`，下载解压后双击 `start.bat` 即可运行
+- **自动发布**：推送 `v*` tag 时自动构建 Windows ZIP 并上传到 GitHub Releases，附带 `SHA256SUMS.txt`
 
 ### v1.2.1（2026-09-24）
 
@@ -151,6 +158,22 @@ npm start       # 启动后端，由后端托管前端静态文件
 ```
 
 生产环境访问 **http://localhost:8787**（单端口，前后端同源）。
+
+---
+
+## Windows 便携版（Releases 下载）
+
+GitHub Releases 会提供 `video-download-manager-vX.Y.Z-win-x64.zip`，包内已经包含 Node、yt-dlp 和 ffmpeg，不需要自己安装运行环境：
+
+1. 打开 [Releases](https://github.com/grape-f/video-download-manager/releases)，下载最新的 `*-win-x64.zip`。
+2. 解压到任意目录（建议路径不要有中文或特殊符号；如果 Windows 提示 SmartScreen，选择“更多信息 → 仍要运行”）。
+3. 双击 `start.bat`。
+4. 浏览器会自动打开 http://127.0.0.1:8787；关闭黑色窗口即可停止服务。
+5. 需要登录态时，按包内 `README-Windows.txt` 的说明加载 `browser-extension`，在设置页复制配对 token 后同步 Edge 登录状态。
+
+便携包不包含任何 cookies 或 token；任务数据保存在解压目录的 `data/`，下载文件保存在 `downloads/`。
+
+> 维护者：`.github/workflows/release.yml` 在推送 `v*` tag 时自动构建并上传 Windows 便携包；也可以在 Actions 页面手动触发 `workflow_dispatch` 只生成测试 artifact。
 
 ---
 

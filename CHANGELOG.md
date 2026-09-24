@@ -2,6 +2,15 @@
 
 本项目遵循[语义化版本](https://semver.org/lang/zh-CN/)（Semantic Versioning）。
 
+## [1.2.2] - 2026-09-24
+
+Windows 便携包与自动发布。
+
+### 新增
+
+- **Windows 便携包**：新增 `packaging/start.bat`、`scripts/package-release.mjs` 和 `.github/workflows/release.yml`，发布包内置 Node、yt-dlp、ffmpeg、前后端构建产物、Edge 扩展和启动脚本，下载解压后双击 `start.bat` 即可运行
+- **自动发布**：推送 `v*` tag 时自动构建 `video-download-manager-vX.Y.Z-win-x64.zip`，上传到 GitHub Releases，并生成 `SHA256SUMS.txt`
+
 ## [1.2.1] - 2026-09-24
 
 修复下载进度显示。

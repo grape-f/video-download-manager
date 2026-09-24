@@ -12,7 +12,11 @@
 
 ## 已发布
 
-### v1.2.1（当前稳定版）
+### v1.2.2（当前稳定版）
+
+Windows 便携包与 GitHub Releases 自动发布，详见 [CHANGELOG.md](./CHANGELOG.md)。
+
+### v1.2.1
 
 修复下载进度不更新的问题，详见 [CHANGELOG.md](./CHANGELOG.md)。
 
