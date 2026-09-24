@@ -29,12 +29,29 @@
 
 ---
 
+## Windows 便携版（Releases 下载）
+
+GitHub Releases 会提供 `video-download-manager-vX.Y.Z-win-x64.zip`，包内已经包含 Node、yt-dlp 和 ffmpeg，不需要自己安装运行环境：
+
+1. 打开 [Releases](https://github.com/grape-f/video-download-manager/releases)，下载最新的 `*-win-x64.zip`。
+2. 解压到任意目录（建议路径不要有中文或特殊符号；如果 Windows 提示 SmartScreen，选择“更多信息 → 仍要运行”）。
+3. 双击 `start.bat`。
+4. 浏览器会自动打开 http://127.0.0.1:8787；关闭黑色窗口即可停止服务。
+5. 需要登录态时，按包内 `README-Windows.txt` 的说明加载 `browser-extension`，在设置页复制配对 token 后同步 Edge 登录状态。
+
+便携包不包含任何 cookies 或 token；任务数据保存在解压目录的 `data/`，下载文件保存在 `downloads/`。
+
+> 维护者：`.github/workflows/release.yml` 在推送 `v*` tag 时自动构建并上传 Windows 便携包；也可以在 Actions 页面手动触发 `workflow_dispatch` 只生成测试 artifact。
+
+---
+
 ## 版本历史
 
 | 版本 | 发布日期 | 重点 |
 | --- | --- | --- |
 | v1.2.1 | 2026-09-24 | 修复下载进度一直为 0 的问题 |
 | v1.2.0 | 2026-09-24 | 2K 目标清晰度、cookies 登录态、Edge 扩展同步、YouTube JS/EJS 修复 |
+| v1.1.0 | 2026-08-16 | 图片直链下载、X / Bilibili 原生解析 |
 
 README 只保留最近三个版本；更早版本的完整记录见 [CHANGELOG.md](./CHANGELOG.md)。
 
@@ -157,22 +174,6 @@ npm start       # 启动后端，由后端托管前端静态文件
 
 ---
 
-## Windows 便携版（Releases 下载）
-
-GitHub Releases 会提供 `video-download-manager-vX.Y.Z-win-x64.zip`，包内已经包含 Node、yt-dlp 和 ffmpeg，不需要自己安装运行环境：
-
-1. 打开 [Releases](https://github.com/grape-f/video-download-manager/releases)，下载最新的 `*-win-x64.zip`。
-2. 解压到任意目录（建议路径不要有中文或特殊符号；如果 Windows 提示 SmartScreen，选择“更多信息 → 仍要运行”）。
-3. 双击 `start.bat`。
-4. 浏览器会自动打开 http://127.0.0.1:8787；关闭黑色窗口即可停止服务。
-5. 需要登录态时，按包内 `README-Windows.txt` 的说明加载 `browser-extension`，在设置页复制配对 token 后同步 Edge 登录状态。
-
-便携包不包含任何 cookies 或 token；任务数据保存在解压目录的 `data/`，下载文件保存在 `downloads/`。
-
-> 维护者：`.github/workflows/release.yml` 在推送 `v*` tag 时自动构建并上传 Windows 便携包；也可以在 Actions 页面手动触发 `workflow_dispatch` 只生成测试 artifact。
-
----
-
 ## Docker 部署
 
 ```bash
@@ -182,17 +183,6 @@ docker compose up -d
 访问 **http://localhost:8787**。
 
 镜像在构建阶段安装 ffmpeg（apt）并下载 yt-dlp 独立二进制；`data` 与 `downloads` 通过命名卷持久化。
-
----
-
-## 离线测试（模拟源）
-
-当 `ENABLE_SIMULATE=true` 时，可使用 `sim://` 协议创建模拟下载任务，无需网络即可验证完整流程（解析、进度、并发、暂停/继续/取消/重试、恢复、Dashboard 统计等）：
-
-- `sim://` —— 默认 5MB / 8 秒
-- `sim://20@30` —— 20MB / 30 秒（`sim://<MB>@<秒>`）
-
-在首页底部点击「使用模拟源快速体验」即可一键体验。
 
 ---
 
