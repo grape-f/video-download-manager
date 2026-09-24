@@ -1,24 +1,30 @@
 import {
   CheckCircle2,
+  Copy,
   Database,
   Folder,
   HardDrive,
   Info,
+  KeyRound,
   Monitor,
   Moon,
+  Puzzle,
+  RefreshCw,
   Save,
   Sun,
+  Trash2,
   XCircle,
 } from 'lucide-react';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { api } from '../lib/api';
 import { useStore } from '../lib/store';
-import { formatBytes } from '../lib/format';
+import { formatBytes, formatDate } from '../lib/format';
+import { VIDEO_QUALITIES, qualityLabel } from '../lib/quality';
 import { Button } from '../components/ui/Button';
 import { Card, CardBody, CardHeader } from '../components/ui/Card';
 import { Field, Input, Select } from '../components/ui/fields';
-import type { ThemePreference } from '../types';
+import type { CookieAuthInfo, ThemePreference } from '../types';
 
-const QUALITIES = ['best', '2160p', '1440p', '1080p', '720p', '480p', '360p'];
 const FORMATS = ['mp4', 'webm', 'mkv'];
 const CONCURRENCY = [1, 2, 3, 5, 10];
 
@@ -29,8 +35,11 @@ const THEME_OPTIONS: Array<{ value: ThemePreference; label: string; icon: typeof
 ];
 
 export function Settings() {
-  const { settings, updateSettings, setTheme, system, refreshSystem } = useStore();
+  const { settings, updateSettings, setTheme, system, refreshSystem, toast } = useStore();
   const [saving, setSaving] = useState(false);
+  const [cookieAuth, setCookieAuth] = useState<CookieAuthInfo | null>(null);
+  const [cookieAuthError, setCookieAuthError] = useState<string | null>(null);
+  const [clearingCookies, setClearingCookies] = useState(false);
   const [form, setForm] = useState({
     defaultQuality: 'best',
     defaultFormat: 'mp4',
@@ -41,6 +50,15 @@ export function Settings() {
     autoRetries: 3,
   });
   const initialized = useRef(false);
+
+  const loadCookieAuth = useCallback(async () => {
+    try {
+      setCookieAuth(await api.cookieAuthStatus());
+      setCookieAuthError(null);
+    } catch (err) {
+      setCookieAuthError(err instanceof Error ? err.message : '无法读取 Cookie 同步状态');
+    }
+  }, []);
 
   useEffect(() => {
     if (settings && !initialized.current) {
@@ -61,6 +79,10 @@ export function Settings() {
     if (!system) void refreshSystem();
   }, [system, refreshSystem]);
 
+  useEffect(() => {
+    void loadCookieAuth();
+  }, [loadCookieAuth]);
+
   const save = async () => {
     setSaving(true);
     await updateSettings({
@@ -78,6 +100,31 @@ export function Settings() {
   const setField = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
+  const copyPairingToken = async () => {
+    if (!cookieAuth?.token) return;
+    try {
+      await navigator.clipboard.writeText(cookieAuth.token);
+      toast('success', '配对 token 已复制');
+    } catch {
+      toast('error', '复制失败，请手动选择复制');
+    }
+  };
+
+  const clearSyncedCookies = async () => {
+    if (!cookieAuth?.token) return;
+    setClearingCookies(true);
+    try {
+      const result = await api.clearCookieAuth(cookieAuth.token);
+      setCookieAuth((prev) => (prev ? { ...prev, status: result.status } : prev));
+      toast('success', '已清除同步的 cookies');
+      void refreshSystem();
+    } catch (err) {
+      toast('error', err instanceof Error ? err.message : '清除失败');
+    } finally {
+      setClearingCookies(false);
+    }
+  };
+
   return (
     <div className="animate-fade-in">
       <div>
@@ -93,9 +140,9 @@ export function Settings() {
             <div className="grid grid-cols-2 gap-3">
               <Field label="默认下载质量">
                 <Select value={form.defaultQuality} onChange={(e) => setField('defaultQuality', e.target.value)}>
-                  {QUALITIES.map((q) => (
+                  {VIDEO_QUALITIES.map((q) => (
                     <option key={q} value={q}>
-                      {q === 'best' ? '最佳可用' : q}
+                      {qualityLabel(q)}
                     </option>
                   ))}
                 </Select>
@@ -209,12 +256,117 @@ export function Settings() {
               value={system?.diskFreeBytes != null ? formatBytes(system.diskFreeBytes) : '—'}
               ok
             />
+            <StatusRow
+              icon={<KeyRound className="h-4 w-4" />}
+              label="登录凭据"
+              value={system?.cookieSource ?? '检测中…'}
+              ok={!!system && !system.cookieSource.startsWith('未检测到') && system.cookieSource !== '自动检测已关闭'}
+            />
             {system?.databasePath && (
               <p className="truncate text-xs text-slate-400 dark:text-slate-500">数据库：{system.databasePath}</p>
             )}
             {system?.downloadDir && (
               <p className="truncate text-xs text-slate-400 dark:text-slate-500">下载目录：{system.downloadDir}</p>
             )}
+          </CardBody>
+        </Card>
+
+        {/* Cookie 同步 */}
+        <Card className="lg:col-span-2">
+          <CardHeader
+            title="Cookie 同步"
+            subtitle="用 Edge 扩展同步登录状态，避免手动导出 cookies.txt 和文件锁"
+          />
+          <CardBody className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <StatusRow
+                icon={<KeyRound className="h-4 w-4" />}
+                label="当前凭据"
+                value={system?.cookieSource ?? '检测中…'}
+                ok={
+                  !!system &&
+                  !system.cookieSource.startsWith('未检测到') &&
+                  system.cookieSource !== '自动检测已关闭'
+                }
+              />
+              <StatusRow
+                icon={<Puzzle className="h-4 w-4" />}
+                label="扩展同步"
+                value={
+                  cookieAuth?.status.available
+                    ? `已同步 ${cookieAuth.status.cookieCount} 条`
+                    : cookieAuth?.status.expired
+                      ? '已过期，请重新同步'
+                      : '未同步'
+                }
+                ok={!!cookieAuth?.status.available}
+              />
+              <StatusRow
+                icon={<Info className="h-4 w-4" />}
+                label="最近同步"
+                value={cookieAuth?.status.syncedAt ? formatDate(cookieAuth.status.syncedAt) : '—'}
+                ok={!!cookieAuth?.status.syncedAt}
+              />
+            </div>
+
+            {cookieAuth?.status.domains.length ? (
+              <p className="text-xs text-slate-400 dark:text-slate-500">
+                域名：{cookieAuth.status.domains.join('、')}
+              </p>
+            ) : null}
+
+            <div className="rounded-lg border border-dashed border-slate-300 p-3 dark:border-slate-700">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-xs text-slate-400 dark:text-slate-500">配对 token</div>
+                  <code className="mt-1 block truncate text-xs text-slate-600 dark:text-slate-300">
+                    {cookieAuth?.token ?? '加载中…'}
+                  </code>
+                </div>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  icon={<Copy className="h-3.5 w-3.5" />}
+                  onClick={copyPairingToken}
+                  disabled={!cookieAuth?.token}
+                >
+                  复制
+                </Button>
+              </div>
+              <p className="mt-2 text-xs leading-relaxed text-slate-400 dark:text-slate-500">
+                在 Edge 打开 <code>edge://extensions</code> → 开发者模式 → 加载解压缩的扩展 → 选择项目里的{' '}
+                <code>browser-extension</code> 目录；打开扩展后粘贴这个 token，点击“同步登录状态”。
+              </p>
+            </div>
+
+            {cookieAuthError && <p className="text-xs text-red-500">{cookieAuthError}</p>}
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                variant="secondary"
+                icon={<RefreshCw className="h-3.5 w-3.5" />}
+                onClick={() => void loadCookieAuth()}
+              >
+                刷新状态
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10"
+                icon={<Trash2 className="h-3.5 w-3.5" />}
+                loading={clearingCookies}
+                onClick={clearSyncedCookies}
+                disabled={!cookieAuth?.status.available}
+              >
+                清除已同步的 cookies
+              </Button>
+            </div>
+
+            <p className="text-xs text-slate-400 dark:text-slate-500">
+              cookies 只保存在本机 <code>data/</code> 目录；同步接口只接受来自 127.0.0.1 的请求。建议把{' '}
+              <code>.env</code> 里的 <code>HOST</code> 设为 <code>127.0.0.1</code>。
+            </p>
           </CardBody>
         </Card>
       </div>

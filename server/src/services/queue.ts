@@ -8,6 +8,7 @@ import { listTasks, upsertTask, deleteTask as dbDeleteTask } from '../db';
 import { bus } from '../bus';
 import { detectPlatform, imageExtFromUrl, isValidHttpUrl } from '../utils/platform';
 import { AppError } from '../utils/errors';
+import { parseTargetHeight } from '../utils/resolution';
 import {
   runDownload,
   DownloadAbortedError,
@@ -28,8 +29,8 @@ function isTransientError(message: string): boolean {
 
 function pickFilesize(info: Partial<VideoInfo> | null | undefined, resolution?: string): number | null {
   if (!info || !Array.isArray(info.resolutions) || info.resolutions.length === 0) return null;
-  const height = parseInt(resolution || '', 10);
-  if (!Number.isFinite(height)) return null;
+  const height = parseTargetHeight(resolution);
+  if (height <= 0) return null;
   const match = info.resolutions.find((r) => r.height === height);
   return match?.filesize ?? null;
 }
@@ -83,6 +84,9 @@ class TaskQueue {
     const settings = getSettings();
     const now = Date.now();
     const isImage = platform.key === 'image' || input.info?.isImage === true;
+    const imageDefaultQuality =
+      settings.defaultQuality && settings.defaultQuality !== 'best' ? settings.defaultQuality : null;
+    const resolution = input.resolution || (isImage ? imageDefaultQuality : settings.defaultQuality);
     const task: DownloadTask = {
       id: randomUUID(),
       url,
@@ -91,9 +95,9 @@ class TaskQueue {
       thumbnail: input.info?.thumbnail ?? null,
       author: input.info?.uploader ?? null,
       duration: input.info?.duration ?? null,
-      resolution: isImage ? null : input.resolution || settings.defaultQuality,
+      resolution: resolution ?? null,
       format: isImage ? imageExtFromUrl(input.info?.directUrl || url) : input.format || settings.defaultFormat,
-      filesize: isImage ? null : pickFilesize(input.info, input.resolution),
+      filesize: isImage ? null : pickFilesize(input.info, resolution ?? undefined),
       status: 'waiting',
       progress: 0,
       downloadedBytes: 0,

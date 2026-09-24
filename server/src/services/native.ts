@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { ResolutionOption } from '../types';
+import { parseTargetHeight } from '../utils/resolution';
 
 const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
@@ -197,12 +198,18 @@ function toQuery(params: Record<string, string>): string {
     .join('&');
 }
 
-const QN_BY_HEIGHT: Record<string, number> = {
-  '1080p': 80,
-  '720p': 64,
-  '480p': 32,
-  '360p': 16,
-};
+// B 站清晰度编号：120=4K，116=1080P60，112=1080P+，80=1080P，74=720P60，64=720P，32=480P，16=360P
+const BEST_QNS = [120, 116, 112, 80, 64, 32, 16];
+const UP_TO_1080_QNS = [116, 112, 80, 64, 32, 16];
+const QNS_BY_TARGET: Array<{ height: number; qns: number[] }> = [
+  { height: 2160, qns: BEST_QNS },
+  // B 站没有原生 1440p，2K 目标优先取 <=1080p 的源，再由 ffmpeg 放大到 1440p
+  { height: 1440, qns: UP_TO_1080_QNS },
+  { height: 1080, qns: UP_TO_1080_QNS },
+  { height: 720, qns: [74, 64, 32, 16] },
+  { height: 480, qns: [32, 16] },
+  { height: 360, qns: [16] },
+];
 
 async function getWbiKeys(): Promise<{ imgKey: string; subKey: string } | null> {
   const json = await fetchJson('https://api.bilibili.com/x/web-interface/nav', {
@@ -278,11 +285,12 @@ export async function resolveBilibiliMedia(
     const info = await getBiliInfo(bvid, mixinKey);
     if (!info) return null;
 
-    // 目标清晰度 → qn；best 从高到低尝试
-    const qns: number[] =
-      height && height !== 'best' && QN_BY_HEIGHT[height]
-        ? [QN_BY_HEIGHT[height]]
-        : [80, 64, 32, 16];
+    // 目标清晰度 → qn 尝试链；best 从高到低尝试，具体目标不会拉超过目标高度的源
+    const targetHeight = parseTargetHeight(height);
+    const qns =
+      targetHeight > 0
+        ? QNS_BY_TARGET.find((c) => c.height === targetHeight)?.qns ?? UP_TO_1080_QNS
+        : BEST_QNS;
 
     let directUrl: string | null = null;
     for (const qn of qns) {

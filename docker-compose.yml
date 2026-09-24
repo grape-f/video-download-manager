@@ -14,9 +14,12 @@ services:
       # 可选：默认质量/格式
       DEFAULT_QUALITY: "best"
       DEFAULT_FORMAT: "mp4"
+      # 可选：容器内没有浏览器，需要登录的内容请挂载 cookies.txt 并设置路径
+      YTDLP_COOKIES: ""
     volumes:
       - vdm-data:/app/data
       - vdm-downloads:/app/downloads
+      # - ./cookies.txt:/app/cookies.txt:ro
     restart: unless-stopped
 
 volumes:

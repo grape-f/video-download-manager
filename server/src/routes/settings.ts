@@ -6,6 +6,7 @@ import { getSettings, updateSettings } from '../settings';
 import { config } from '../config';
 import { queue } from '../services/queue';
 import { wrap } from '../utils/asyncHandler';
+import { cookieSourceLabel } from '../utils/ytdlpArgs';
 import type { SystemStatus } from '../types';
 
 const router = Router();
@@ -53,6 +54,7 @@ router.get(
       diskTotalBytes: diskTotal(config.downloadDir),
       ytdlpAvailable: checkCommand(config.ytdlpPath),
       ffmpegAvailable: checkFfmpeg(),
+      cookieSource: cookieSourceLabel(),
     };
     res.json(status);
   }),

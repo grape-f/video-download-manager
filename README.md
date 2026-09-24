@@ -10,6 +10,7 @@
 
 - **多平台支持**：YouTube、Bilibili、Vimeo、X (Twitter)、TikTok、Instagram
 - **智能解析**：自动识别平台、校验 URL、获取标题/缩略图/时长/作者/可用分辨率/文件大小
+- **2K 输出**：视频与图片都可选择 1440p（2K）目标；源清晰度不足且系统有 ffmpeg 时自动放大到目标高度
 - **任务队列**：Waiting / Parsing / Downloading / Paused / Completed / Failed / Cancelled 七种状态
 - **并发控制**：默认 3 个并发，可配置 1/2/3/5/10，超出自动进入等待队列
 - **实时进度**：进度条、下载速度、剩余时间，基于 SSE 实时推送
@@ -97,14 +98,17 @@ npm start       # 启动后端，由后端托管前端静态文件
 | `DATA_DIR` | `./data` | SQLite 数据库目录（相对项目根） |
 | `DOWNLOAD_DIR` | `./downloads` | 视频下载目录 |
 | `MAX_CONCURRENT` | `3` | 最大并发下载数 |
-| `DEFAULT_QUALITY` | `best` | 默认质量（best/2160p/1440p/1080p/720p/480p/360p） |
+| `DEFAULT_QUALITY` | `best` | 默认质量（best/2160p/1440p/1080p/720p/480p/360p，也接受 2k/4k 别名） |
 | `DEFAULT_FORMAT` | `mp4` | 默认格式（mp4/webm/mkv） |
 | `MAX_SPEED` | 空 | 最大下载速度（如 `8M`，空为不限速） |
 | `REQUEST_TIMEOUT_MS` | `120000` | 请求超时（毫秒） |
 | `AUTO_RETRIES` | `3` | 自动重试次数 |
 | `YTDLP_PATH` | `yt-dlp` | yt-dlp 可执行文件路径 |
-| `YTDLP_COOKIES_FROM_BROWSER` | 空 | 可选：从本地浏览器读取 cookies（如 `chrome` / `edge` / `firefox`） |
-| `YTDLP_COOKIES` | 空 | 可选：Netscape 格式 cookies.txt 文件路径（相对项目根目录） |
+| `YTDLP_JS_RUNTIME` | 当前 Node | YouTube 需要的 JavaScript 运行时；默认使用运行后端的 Node 可执行文件，设为 `none` 可关闭 |
+| `YTDLP_REMOTE_COMPONENTS` | `ejs:github` | yt-dlp 外部组件来源；`ejs:github` / `ejs:npm` / `none` |
+| `YTDLP_COOKIES_AUTO` | `true` | 未显式配置 cookies 时，自动探测本机浏览器的 cookies（Edge / Chrome / Firefox / Brave 等）；不想自动读取可设为 `false` |
+| `YTDLP_COOKIES_FROM_BROWSER` | 空 | 可选：手动指定浏览器（如 `chrome` / `edge` / `firefox`），优先于自动探测 |
+| `YTDLP_COOKIES` | 空 | 可选：Netscape 格式 cookies.txt 文件路径（相对项目根目录）；与 `YTDLP_COOKIES_FROM_BROWSER` 同时设置时优先使用它 |
 | `FFMPEG_PATH` | `./bin/ffmpeg` | ffmpeg 所在目录（含 ffmpeg.exe） |
 | `ENABLE_SIMULATE` | `true` | 是否启用模拟源（`sim://` 协议，用于离线测试） |
 
@@ -122,6 +126,21 @@ docker compose up -d
 
 ---
 
+## Edge 扩展登录同步
+
+如果浏览器是 Edge，推荐用项目里的 `browser-extension/` 扩展把登录 cookies 同步给本地下载器。它通过浏览器自己的 cookie 接口读取，不依赖直接打开 Edge 的 `Cookies` 数据库文件，因此 Edge 正在运行也能用。
+
+安装与使用：
+
+1. 打开 `edge://extensions` → 打开「开发者模式」→「加载解压缩的扩展」→ 选择项目里的 `browser-extension` 目录。
+2. 启动后端，打开设置页的「Cookie 同步」卡片，复制配对 token。
+3. 点击扩展图标，填入 `http://127.0.0.1:8787` 和配对 token，点击「保存」。
+4. 在 Edge 登录 YouTube / Instagram / TikTok，点击「同步登录状态」。
+
+凭据优先级：`YTDLP_COOKIES`（手动 cookies.txt）> Edge 扩展同步 > `YTDLP_COOKIES_FROM_BROWSER` > 自动探测浏览器。同步后的 cookies 保存在 `data/extension-cookies.txt`，配对 token 保存在 `data/extension-token.txt`，都在 gitignore 的 `data/` 目录内。同步接口只接受来自 127.0.0.1 的请求；建议把 `.env` 里的 `HOST` 设为 `127.0.0.1`。
+
+---
+
 ## 项目目录结构
 
 ```
@@ -136,16 +155,19 @@ shipin_xiazai/
 │       ├── types.ts        # 共享类型
 │       ├── services/
 │       │   ├── extractor.ts   # yt-dlp 视频信息解析（含模拟源）
+│       │   ├── native.ts      # X / Instagram / Bilibili 原生解析（无需登录）
 │       │   ├── downloader.ts  # yt-dlp 下载 + 进度解析（含模拟下载）
+│       │   ├── upscale.ts     # ffmpeg/ffprobe 探测与目标清晰度放大
 │       │   └── queue.ts       # 并发任务队列、恢复、持久化
 │       ├── routes/         # parse/tasks/history/dashboard/settings/files/events
-│       └── utils/          # platform/format/errors/asyncHandler
+│       └── utils/          # platform/resolution/format/errors/asyncHandler
 ├── web/                    # 前端（React + Vite + Tailwind）
 │   └── src/
 │       ├── App.tsx / main.tsx
-│       ├── lib/            # api/store/stats/format/platform
+│       ├── lib/            # api/store/stats/format/platform/quality
 │       ├── components/     # ui 组件、charts、TaskItem、Layout
 │       └── pages/          # Home/Tasks/History/Dashboard/Settings
+├── browser-extension/      # Edge MV3 扩展：把浏览器登录 cookies 同步给本地服务
 ├── e2e/                    # Playwright 端到端测试（使用系统 Edge）
 ├── Dockerfile
 ├── docker-compose.yml
@@ -205,8 +227,37 @@ curl -X POST http://localhost:8787/api/tasks \
 **Q：提示「缺少 ffmpeg，无法合并高清音视频」？**
 安装 ffmpeg 并配置 `FFMPEG_PATH`，或保持默认（系统会自动降级为免合并格式，最高 720P）。
 
-**Q：提示「该视频需要登录或受年龄限制，无法访问」？**
-这是平台官方限制，本工具不绕过登录/年龄限制。请使用你有权访问的公开视频。
+**Q：选了 1440p（2K），但源视频/图片只有 1080p 或更低怎么办？**
+系统会先下载平台能提供的最高可用源，再用 ffmpeg 放大到 1440p。缺少 ffmpeg 时保留源清晰度并正常完成任务。放大属于像素插值，尺寸会达到 2K，但不会凭空增加真实细节。
+
+**Q：所有图片格式都能放大到 2K 吗？**
+静态图片（jpg / png / webp / bmp）可以；gif 动图、svg 矢量图和 ico 会保留原图，前端只会提供「原图」选项。
+
+**Q：解析 YouTube 视频时提示需要登录 / 确认不是机器人怎么办？**
+这是 YouTube 的风控校验，不是本项目能绕过的限制。默认情况下后端会自动探测本机浏览器（Edge / Chrome / Firefox / Brave 等）并读取你已登录的 cookies，通常不需要任何配置，重启一次后端即可。
+
+- 设置页“系统 → 登录凭据”会显示实际使用的来源，例如 `edge:Default（自动检测）`；
+- 如果探测到的浏览器不是登录 YouTube 的那个，可以在 `.env` 设置 `YTDLP_COOKIES_FROM_BROWSER=firefox`（或 chrome / edge）手动指定；
+- 也可以导出 Netscape 格式的 `cookies.txt`，设置 `YTDLP_COOKIES=./cookies.txt`；
+- 建议同时升级 yt-dlp：`yt-dlp -U`，旧版本经常跟不上 YouTube 的改动；
+- 不想让程序自动读取浏览器 cookies，可设置 `YTDLP_COOKIES_AUTO=false`。
+
+cookies 只适用于你本人有权访问的内容，不能绕过会员、付费、私密或年龄限制；cookies 文件包含登录凭据，不要提交到 git。Windows 上读取浏览器 cookies 失败时，先关闭浏览器再重试，或改用 cookies.txt。当前 cookies 会传给 yt-dlp 解析/下载路径（YouTube、Vimeo、TikTok、Instagram 视频回退等）；X / Bilibili 的原生公开 API 解析不走 cookies。
+
+**Q：YouTube 提示 The page needs to be reloaded / Signature solving failed 怎么办？**
+这是 yt-dlp 缺少 YouTube 现在要求的 JavaScript 运行时或 EJS 挑战求解组件。项目默认会传 `--js-runtimes node:<当前 Node 路径>` 和 `--remote-components ejs:github`，只要本机 Node.js 可用（本项目本身就要求 Node 22.5+）即可。如果网络无法访问 GitHub，执行 `python -m pip install -U "yt-dlp[default]"`（或 `pip install yt-dlp-ejs`）后重启后端。
+
+Docker 部署时容器里没有浏览器，请把 `cookies.txt` 挂载进容器并设置 `YTDLP_COOKIES=/app/cookies.txt`（`docker-compose.yml` 里留了注释示例）。
+
+**Q：提示「读取浏览器 cookies 失败：请先关闭浏览器，或改用 cookies.txt」怎么办？**
+这个错误说明后端读不到或解不开 Edge/Chrome 的 cookies 数据库，和“有没有登录 YouTube”是两回事。按顺序排查：
+
+1. 完全退出浏览器：Edge 设置 → 系统和性能 → 关闭“启动增强”和“关闭 Microsoft Edge 后继续运行后台扩展”，然后在任务管理器结束所有 `msedge.exe`，再重启后端。
+2. 确认后端和浏览器是同一个 Windows 用户：Docker、Windows 服务或受限沙箱里运行的后端读不到 `%LOCALAPPDATA%\Microsoft\Edge\User Data`。请在普通 PowerShell / CMD 里启动后端。
+3. 如果登录在非默认 Edge 配置文件，设置 `YTDLP_COOKIES_FROM_BROWSER=edge:Profile 1`；配置文件名可在 `edge://version` 的“配置文件路径”或 `%LOCALAPPDATA%\Microsoft\Edge\User Data` 下查看。
+4. 最稳的方案：导出 Netscape 格式的 `cookies.txt` 放到项目根目录，设置 `YTDLP_COOKIES=./cookies.txt`。现在 `YTDLP_COOKIES` 优先于 `YTDLP_COOKIES_FROM_BROWSER`，所以不用删除 `edge` 那行。
+5. 升级 yt-dlp：`yt-dlp -U`。
+6. 仍然失败时看后端控制台以 `[yt-dlp]` 开头的原始错误，它会区分“数据库被占用”“解密失败”还是“profile 不存在”。
 
 **Q：提示「当前平台不支持」？**
 当前支持 YouTube、Bilibili、Vimeo、X、TikTok、Instagram。其余平台不在第一阶段支持范围。

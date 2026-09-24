@@ -12,6 +12,7 @@ import {
   formatSpeed,
 } from '../lib/format';
 import { platformVisual } from '../lib/platform';
+import { qualityLabel } from '../lib/quality';
 import { StatusBadge } from './ui/Badge';
 import { ProgressBar } from './ui/ProgressBar';
 import { Button } from './ui/Button';
@@ -56,7 +57,7 @@ export function TaskItem({ task }: { task: DownloadTask }) {
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
             <span className={`rounded-full px-2 py-0.5 font-medium ${visual.badgeClass}`}>{visual.name}</span>
-            {task.resolution && <span>{task.resolution}</span>}
+            {task.resolution && <span>{qualityLabel(task.resolution)}</span>}
             {task.format && <span>{task.format.toUpperCase()}</span>}
             {task.filesize != null && <span>{formatBytes(task.filesize)}</span>}
             {task.author && <span>· {task.author}</span>}

@@ -5,6 +5,7 @@ import { emitSettingsUpdated } from './bus';
 import type { Settings } from './types';
 
 const ALLOWED_CONCURRENCY = [1, 2, 3, 5, 10];
+const ALLOWED_QUALITIES = new Set(['best', '2160p', '1440p', '1080p', '720p', '480p', '360p', '4k', '2k']);
 
 let current: Settings | null = null;
 
@@ -28,7 +29,7 @@ function resolveDir(dir: string): string {
 function sanitize(s: Settings): Settings {
   const concurrency = ALLOWED_CONCURRENCY.includes(s.maxConcurrent) ? s.maxConcurrent : 3;
   return {
-    defaultQuality: s.defaultQuality || 'best',
+    defaultQuality: ALLOWED_QUALITIES.has(s.defaultQuality) ? s.defaultQuality : 'best',
     defaultFormat: s.defaultFormat || 'mp4',
     maxConcurrent: concurrency,
     downloadDir: resolveDir(s.downloadDir || config.downloadDir),

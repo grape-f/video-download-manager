@@ -3,6 +3,7 @@ import { config } from '../config';
 import type { ResolutionOption, VideoInfo } from '../types';
 import { AppError, friendlyYtDlpError } from '../utils/errors';
 import { detectPlatform, isImageUrl } from '../utils/platform';
+import { ytdlpAuthArgs, ytdlpRuntimeArgs } from '../utils/ytdlpArgs';
 import { resolveBilibiliMedia, resolveInstagramMedia, resolveTwitterMedia, type ResolvedMedia } from './native';
 
 interface ProcessResult {
@@ -43,7 +44,10 @@ function collectOutput(args: string[], timeoutMs: number): Promise<ProcessResult
       settled = true;
       clearTimeout(timer);
       if (code === 0) resolve({ stdout, stderr });
-      else reject(new AppError('YTDLP', friendlyYtDlpError(stderr), 422));
+      else {
+        console.error('[yt-dlp]', stderr.trim().slice(-2000));
+        reject(new AppError('YTDLP', friendlyYtDlpError(stderr), 422));
+      }
     });
   });
 }
@@ -183,6 +187,8 @@ export async function extractInfo(url: string): Promise<VideoInfo> {
     '--no-warnings',
     '--socket-timeout',
     '30',
+    ...ytdlpRuntimeArgs(),
+    ...ytdlpAuthArgs(),
     trimmed,
   ];
   const { stdout } = await collectOutput(args, config.requestTimeoutMs);

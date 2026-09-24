@@ -21,6 +21,11 @@ bin/
 .env
 .env.local
 
+# yt-dlp cookies (session credentials)
+cookies.txt
+*.cookies.txt
+.cookies/
+
 # logs
 *.log
 npm-debug.log*

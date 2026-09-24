@@ -1,4 +1,6 @@
 import type {
+  CookieAuthInfo,
+  CookieAuthStatus,
   DashboardStats,
   DownloadTask,
   ParseResult,
@@ -7,9 +9,11 @@ import type {
 } from '../types';
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const headers = new Headers(init?.headers);
+  if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
   const res = await fetch(path, {
-    headers: { 'Content-Type': 'application/json' },
     ...init,
+    headers,
   });
   if (!res.ok) {
     let message = `请求失败 (${res.status})`;
@@ -79,6 +83,13 @@ export const api = {
   updateSettings: (partial: Partial<Settings>) =>
     request<Settings>('/api/settings', { method: 'PUT', body: JSON.stringify(partial) }),
   system: () => request<SystemStatus>('/api/system'),
+
+  cookieAuthStatus: () => request<CookieAuthInfo>('/api/auth/status'),
+  clearCookieAuth: (token: string) =>
+    request<{ ok: boolean; status: CookieAuthStatus }>('/api/auth/cookies', {
+      method: 'DELETE',
+      headers: { 'X-Pairing-Token': token },
+    }),
 
   openFile: (filePath: string) =>
     request<{ ok: boolean }>('/api/files/open', { method: 'POST', body: JSON.stringify({ path: filePath }) }),

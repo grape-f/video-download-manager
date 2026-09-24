@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "Video Download Manager 登录同步",
+  "version": "1.0.0",
+  "description": "把 Edge 的登录 cookies 同步给本地视频下载管理器，只发送到 127.0.0.1。",
+  "permissions": ["cookies", "storage"],
+  "host_permissions": [
+    "https://*.youtube.com/*",
+    "https://*.google.com/*",
+    "https://*.instagram.com/*",
+    "https://*.facebook.com/*",
+    "https://*.tiktok.com/*",
+    "http://127.0.0.1/*",
+    "http://localhost/*"
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "同步登录状态",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  }
+}

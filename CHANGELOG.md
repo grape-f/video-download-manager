@@ -2,6 +2,31 @@
 
 本项目遵循[语义化版本](https://semver.org/lang/zh-CN/)（Semantic Versioning）。
 
+## [1.2.0] - 2026-09-24
+
+功能扩展与登录态版本。
+
+### 新增
+
+- **2K / 1440p 目标清晰度**：视频与图片都可选择 1440p（2K）；源清晰度不足且检测到 ffmpeg 时，用 ffmpeg lanczos 放大到目标高度，缺少 ffmpeg 时保留源清晰度
+- **yt-dlp 登录态支持**：支持 `YTDLP_COOKIES`（Netscape cookies.txt）、`YTDLP_COOKIES_FROM_BROWSER`（指定浏览器）和 `YTDLP_COOKIES_AUTO`（自动探测本机浏览器，默认开启）
+- **Edge 扩展登录同步**：新增 `browser-extension/` MV3 扩展，通过本地配对 token 把 Edge 登录 cookies 同步到 `data/extension-cookies.txt`，避免 Chromium cookies 数据库文件锁；设置页新增「Cookie 同步」卡片
+- **YouTube JavaScript 运行时与 EJS 支持**：解析/下载自动传 `--js-runtimes node:<当前 Node 路径>` 和 `--remote-components ejs:github`，新增 `YTDLP_JS_RUNTIME`、`YTDLP_REMOTE_COMPONENTS` 配置
+- 设置页与任务列表统一显示 2K/4K 质量标签；新增登录凭据来源显示
+
+### 修复
+
+- YouTube「The page needs to be reloaded / Signature solving failed / n challenge solving failed」导致下载失败
+- 读取 Edge/Chrome cookies 失败时的错误提示不明确；现在区分数据库被占用、解密失败、profile 不存在、权限不足
+- 图片选择「原图」时被默认质量覆盖的问题
+- Bilibili 2K 目标误拉 4K 源且不做下采样的问题
+- e2e 测试选择器与 v1.1.0 文案不同步的问题，并新增 2K 用例
+
+### 变更
+
+- 版本号 1.1.0 → 1.2.0
+- 下载产物仍保存在 `downloads/`，扩展同步的 cookies 与配对 token 保存在 `data/`，均不进入 git
+
 ## [1.1.0] - 2026-08-16
 
 功能扩展版本。

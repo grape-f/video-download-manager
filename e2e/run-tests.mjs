@@ -31,8 +31,8 @@ async function screenshot(page, name) {
 
 async function createTaskViaUi(page, url) {
   await page.goto(BASE + '/');
-  await page.getByPlaceholder('粘贴视频链接，或将链接拖拽到此处').fill(url);
-  await page.getByRole('button', { name: /解析视频/ }).click();
+  await page.getByPlaceholder('粘贴视频或图片链接，或将链接拖拽到此处').fill(url);
+  await page.getByRole('button', { name: /解析链接/ }).click();
   await page.getByRole('button', { name: /加入下载队列/ }).waitFor({ timeout: 10000 });
   await page.getByRole('button', { name: /加入下载队列/ }).click();
   await page.waitForURL(/\/tasks/, { timeout: 5000 });
@@ -53,7 +53,7 @@ async function run() {
     try {
       await page.goto(BASE + '/');
       await page.getByRole('heading', { name: '在线视频下载管理器' }).waitFor();
-      const sub = await page.getByText('统一管理你的在线视频下载任务').isVisible();
+      const sub = await page.getByText('统一管理你的在线视频与图片下载任务').isVisible();
       assert(sub, '副标题未显示');
       await screenshot(page, '01-home');
       record('首页正常打开', true);
@@ -63,7 +63,7 @@ async function run() {
 
     // 2. URL 输入正常
     try {
-      const input = page.getByPlaceholder('粘贴视频链接，或将链接拖拽到此处');
+      const input = page.getByPlaceholder('粘贴视频或图片链接，或将链接拖拽到此处');
       await input.fill('sim://3@30');
       assert((await input.inputValue()) === 'sim://3@30', '输入框内容不匹配');
       record('URL 输入正常', true);
@@ -74,10 +74,10 @@ async function run() {
     // 3. URL 校验正常（无效格式）
     try {
       await page.goto(BASE + '/');
-      const input = page.getByPlaceholder('粘贴视频链接，或将链接拖拽到此处');
+      const input = page.getByPlaceholder('粘贴视频或图片链接，或将链接拖拽到此处');
       await input.fill('not-a-valid-url');
-      await page.getByRole('button', { name: /解析视频/ }).click();
-      await page.getByText('URL 格式错误，请输入有效的视频链接').waitFor();
+      await page.getByRole('button', { name: /解析链接/ }).click();
+      await page.getByText('URL 格式错误，请输入有效的视频或图片链接').waitFor();
       record('URL 校验正常', true);
     } catch (e) {
       record('URL 校验正常', false, e.message);
@@ -86,13 +86,35 @@ async function run() {
     // 4. 平台识别正常（不支持的平台）
     try {
       await page.goto(BASE + '/');
-      const input = page.getByPlaceholder('粘贴视频链接，或将链接拖拽到此处');
+      const input = page.getByPlaceholder('粘贴视频或图片链接，或将链接拖拽到此处');
       await input.fill('https://example.com/video/123');
-      await page.getByRole('button', { name: /解析视频/ }).click();
+      await page.getByRole('button', { name: /解析链接/ }).click();
       await page.getByText('当前平台不支持').waitFor();
       record('平台识别正常', true);
     } catch (e) {
       record('平台识别正常', false, e.message);
+    }
+
+    // 4.5 质量选项：2K（1440p）可选，且源清晰度不足时给出放大提示
+    try {
+      await page.goto(BASE + '/');
+      const input = page.getByPlaceholder('粘贴视频或图片链接，或将链接拖拽到此处');
+      await input.fill('sim://3@5');
+      await page.getByRole('button', { name: /解析链接/ }).click();
+      await page.getByRole('button', { name: /加入下载队列/ }).waitFor({ timeout: 10000 });
+
+      const quality = page.getByLabel('视频质量');
+      const options = await quality.locator('option').allTextContents();
+      assert(options.includes('1440p（2K）'), `质量选项缺少 1440p（2K）：${options.join(' / ')}`);
+      assert(options.includes('2160p（4K）'), `质量选项缺少 2160p（4K）：${options.join(' / ')}`);
+
+      // 模拟源最高 1080p，选择 1440p 应出现放大提示
+      await quality.selectOption('1440p');
+      await page.getByText('源清晰度不足，将自动放大到目标清晰度').waitFor({ timeout: 5000 });
+      await screenshot(page, '04b-quality-2k');
+      record('2K 质量选项与放大提示', true);
+    } catch (e) {
+      record('2K 质量选项与放大提示', false, e.message);
     }
 
     // 5. 任务创建 + 6. 下载队列 + 7. 进度

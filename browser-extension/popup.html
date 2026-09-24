@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>登录同步</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="panel">
+      <header>
+        <h1>登录同步</h1>
+        <p class="sub">把 Edge 登录状态同步给本地下载管理器</p>
+      </header>
+
+      <label class="field">
+        <span>本地服务地址</span>
+        <input id="server" type="url" placeholder="http://127.0.0.1:8787" autocomplete="off" />
+      </label>
+
+      <label class="field">
+        <span>配对 token</span>
+        <input id="token" type="text" placeholder="在下载管理器设置页复制" autocomplete="off" />
+      </label>
+
+      <div class="row">
+        <button id="save" class="secondary" type="button">保存</button>
+        <button id="ping" class="secondary" type="button">测试连接</button>
+      </div>
+
+      <button id="sync" class="primary" type="button">同步登录状态</button>
+
+      <div id="status" class="status" role="status"></div>
+
+      <p class="note">
+        cookies 只会发送到 127.0.0.1 / localhost，不会上传到任何第三方服务器。同步后可在下载管理器设置页清除。
+      </p>
+    </main>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

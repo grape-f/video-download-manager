@@ -13,6 +13,11 @@ export interface ResolutionOption {
   filesize: number | null;
 }
 
+export interface MediaFile {
+  filePath: string;
+  filesize: number;
+}
+
 export interface VideoInfo {
   title: string;
   thumbnail: string | null;
@@ -108,4 +113,19 @@ export interface SystemStatus {
   diskTotalBytes: number | null;
   ytdlpAvailable: boolean;
   ffmpegAvailable: boolean;
+  cookieSource: string;
+}
+
+export interface CookieAuthStatus {
+  available: boolean;
+  expired: boolean;
+  cookieCount: number;
+  domains: string[];
+  syncedAt: number | null;
+  expiresAt: number | null;
+}
+
+export interface CookieAuthInfo {
+  status: CookieAuthStatus;
+  token: string;
 }

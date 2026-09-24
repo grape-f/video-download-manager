@@ -17,16 +17,21 @@ function toBool(value: string | undefined, fallback: boolean): boolean {
   return value === '1' || value.toLowerCase() === 'true';
 }
 
+const ytdlpCookiesFile = process.env.YTDLP_COOKIES?.trim();
+const ytdlpJsRuntimeEnv = process.env.YTDLP_JS_RUNTIME?.trim();
+const ytdlpRemoteComponentsEnv = process.env.YTDLP_REMOTE_COMPONENTS?.trim();
+const dataDir = path.resolve(PROJECT_ROOT, process.env.DATA_DIR || 'data');
+
 export const config = {
-  version: '1.1.0',
+  version: '1.2.0',
   port: toNumber(process.env.PORT, 8787),
   host: process.env.HOST || '0.0.0.0',
   projectRoot: PROJECT_ROOT,
-  dataDir: path.resolve(PROJECT_ROOT, process.env.DATA_DIR || 'data'),
+  dataDir,
   downloadDir: path.resolve(PROJECT_ROOT, process.env.DOWNLOAD_DIR || 'downloads'),
   dbPath: process.env.DB_PATH
     ? path.resolve(PROJECT_ROOT, process.env.DB_PATH)
-    : path.join(path.resolve(PROJECT_ROOT, process.env.DATA_DIR || 'data'), 'app.db'),
+    : path.join(dataDir, 'app.db'),
   maxConcurrent: toNumber(process.env.MAX_CONCURRENT, 3),
   defaultQuality: process.env.DEFAULT_QUALITY || 'best',
   defaultFormat: process.env.DEFAULT_FORMAT || 'mp4',
@@ -34,6 +39,15 @@ export const config = {
   requestTimeoutMs: toNumber(process.env.REQUEST_TIMEOUT_MS, 120_000),
   autoRetries: toNumber(process.env.AUTO_RETRIES, 3),
   ytdlpPath: process.env.YTDLP_PATH || 'yt-dlp',
+  ytdlpCookies: ytdlpCookiesFile ? path.resolve(PROJECT_ROOT, ytdlpCookiesFile) : null,
+  ytdlpCookiesFromBrowser: process.env.YTDLP_COOKIES_FROM_BROWSER?.trim() || null,
+  ytdlpCookiesAuto: toBool(process.env.YTDLP_COOKIES_AUTO, true),
+  ytdlpJsRuntime:
+    ytdlpJsRuntimeEnv === 'none' ? null : ytdlpJsRuntimeEnv || `node:${process.execPath}`,
+  ytdlpRemoteComponents:
+    ytdlpRemoteComponentsEnv === 'none' ? null : ytdlpRemoteComponentsEnv || 'ejs:github',
+  extensionTokenPath: path.join(dataDir, 'extension-token.txt'),
+  extensionCookiesPath: path.join(dataDir, 'extension-cookies.txt'),
   ffmpegPath: process.env.FFMPEG_PATH
     ? path.resolve(PROJECT_ROOT, process.env.FFMPEG_PATH)
     : null,

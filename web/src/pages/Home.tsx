@@ -1,10 +1,17 @@
 import { Download, Link2, Loader2, Sparkles, Wand2 } from 'lucide-react';
-import { useMemo, useState, type DragEvent, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type DragEvent, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useStore } from '../lib/store';
 import { formatBytes, formatDuration } from '../lib/format';
 import { platformVisual } from '../lib/platform';
+import {
+  IMAGE_QUALITIES,
+  VIDEO_QUALITIES,
+  canUpscaleImageExt,
+  parseTargetHeight,
+  qualityLabel,
+} from '../lib/quality';
 import { Button } from '../components/ui/Button';
 import { Field, Select } from '../components/ui/fields';
 import { Thumbnail } from '../components/Thumbnail';
@@ -23,6 +30,7 @@ export function Home() {
   const [result, setResult] = useState<ParseResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [resolution, setResolution] = useState('best');
+  const [imageResolution, setImageResolution] = useState('original');
   const [format, setFormat] = useState('mp4');
 
   const visual = result ? platformVisual(result.platform.key) : null;
@@ -30,20 +38,39 @@ export function Home() {
 
   const imageExt = useMemo(() => {
     if (!result?.info.isImage) return null;
-    const m = /\.(jpe?g|png|webp|gif|bmp|avif|svg|ico)(?:[?#]|$)/i.exec(result.info.webpageUrl);
+    const candidate = result.info.directUrl || result.info.webpageUrl;
+    const m = /\.(jpe?g|png|webp|gif|bmp|avif|svg|ico)(?:[?#]|$)/i.exec(candidate);
     return m ? (m[1].toLowerCase() === 'jpeg' ? 'jpg' : m[1].toLowerCase()) : 'jpg';
   }, [result]);
 
+  const imageQualityOptions = useMemo(
+    () => (canUpscaleImageExt(imageExt) ? IMAGE_QUALITIES : ['original']),
+    [imageExt],
+  );
+
+  useEffect(() => {
+    if (!imageQualityOptions.includes(imageResolution)) setImageResolution('original');
+  }, [imageQualityOptions, imageResolution]);
+
   const resolutionOptions = useMemo(() => {
     const detected = (result?.info.resolutions ?? []).map((r) => r.label);
-    return [...new Set(['best', ...detected])];
+    return [...new Set([...VIDEO_QUALITIES, ...detected])];
   }, [result]);
 
   const selectedFilesize = useMemo(() => {
     if (!result || resolution === 'best') return null;
-    const height = parseInt(resolution, 10);
+    const height = parseTargetHeight(resolution);
     return result.info.resolutions.find((r) => r.height === height)?.filesize ?? null;
   }, [result, resolution]);
+
+  const detectedMaxHeight = useMemo(
+    () => Math.max(0, ...(result?.info.resolutions ?? []).map((r) => r.height)),
+    [result],
+  );
+  const willUpscale =
+    resolution !== 'best' &&
+    detectedMaxHeight > 0 &&
+    parseTargetHeight(resolution) > detectedMaxHeight;
 
   const parse = async (value?: string) => {
     const target = (value ?? url).trim();
@@ -58,6 +85,11 @@ export function Home() {
       const r = await api.parse(target);
       setResult(r);
       setResolution(settings?.defaultQuality ?? 'best');
+      setImageResolution(
+        settings?.defaultQuality && settings.defaultQuality !== 'best'
+          ? settings.defaultQuality
+          : 'original',
+      );
       setFormat(settings?.defaultFormat ?? 'mp4');
     } catch (err) {
       setError(err instanceof Error ? err.message : '解析失败');
@@ -89,7 +121,8 @@ export function Home() {
     try {
       const task = await api.createTask({
         url: result.info.webpageUrl,
-        resolution: isImage ? undefined : resolution,
+        // 图片：始终显式带上所选质量，"original" 表示保持原图、不做放大
+        resolution: isImage ? imageResolution : resolution,
         format: isImage ? undefined : format,
         info: { ...result.info, platform: result.platform.key },
       });
@@ -244,9 +277,9 @@ export function Home() {
 
             <div className="border-t border-slate-100 p-5 dark:border-slate-800">
               {isImage ? (
-                <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                   <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-                    <span>原图</span>
+                    <span>{qualityLabel(imageResolution)}</span>
                     {imageExt && (
                       <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                         {imageExt.toUpperCase()}
@@ -254,19 +287,36 @@ export function Home() {
                     )}
                     <span className="hidden text-xs text-slate-400 sm:inline">→ {settings?.downloadDir}</span>
                   </div>
-                  <Button size="lg" loading={submitting} onClick={addToQueue} className="w-full sm:w-auto">
-                    {!submitting && <Download className="h-4 w-4" />}
-                    加入下载队列
-                  </Button>
+                  <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-end">
+                    <Field
+                      label="图片质量"
+                      hint={imageQualityOptions.length > 1 ? '源尺寸不足时自动放大' : '该格式保留原图，不做放大'}
+                    >
+                      <Select value={imageResolution} onChange={(e) => setImageResolution(e.target.value)}>
+                        {imageQualityOptions.map((q) => (
+                          <option key={q} value={q}>
+                            {qualityLabel(q)}
+                          </option>
+                        ))}
+                      </Select>
+                    </Field>
+                    <Button size="lg" loading={submitting} onClick={addToQueue} className="w-full sm:w-auto">
+                      {!submitting && <Download className="h-4 w-4" />}
+                      加入下载队列
+                    </Button>
+                  </div>
                 </div>
               ) : (
                 <>
                   <div className="grid gap-4 sm:grid-cols-3">
-                    <Field label="视频质量">
+                    <Field
+                      label="视频质量"
+                      hint={willUpscale ? '源清晰度不足，将自动放大到目标清晰度' : undefined}
+                    >
                       <Select value={resolution} onChange={(e) => setResolution(e.target.value)}>
                         {resolutionOptions.map((r) => (
                           <option key={r} value={r}>
-                            {r === 'best' ? '最佳可用' : r}
+                            {qualityLabel(r)}
                           </option>
                         ))}
                       </Select>

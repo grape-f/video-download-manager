@@ -6,6 +6,7 @@ import dashboardRouter from './dashboard';
 import settingsRouter from './settings';
 import filesRouter from './files';
 import eventsRouter from './events';
+import authRouter from './auth';
 
 export function registerRoutes(app: Express): void {
   app.use('/api', parseRouter);
@@ -15,4 +16,5 @@ export function registerRoutes(app: Express): void {
   app.use('/api', settingsRouter);
   app.use('/api', filesRouter);
   app.use('/api', eventsRouter);
+  app.use('/api', authRouter);
 }

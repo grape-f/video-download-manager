@@ -2,9 +2,12 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { config } from '../config';
-import type { DownloadTask, Settings, TaskProgress } from '../types';
+import type { DownloadTask, MediaFile, Settings, TaskProgress } from '../types';
 import { AppError, friendlyYtDlpError } from '../utils/errors';
+import { parseTargetHeight } from '../utils/resolution';
+import { ytdlpAuthArgs, ytdlpRuntimeArgs } from '../utils/ytdlpArgs';
 import { resolveBilibiliMedia, resolveTwitterMedia } from './native';
+import { ffmpegAvailable, upscaleMediaIfNeeded } from './upscale';
 
 export type AbortReason = 'paused' | 'cancelled' | 'removed';
 
@@ -23,10 +26,7 @@ export class DownloadAbortedError extends Error {
   }
 }
 
-export interface DownloadResult {
-  filePath: string;
-  filesize: number;
-}
+export type DownloadResult = MediaFile;
 
 export interface DownloadHandlers {
   onProgress(p: TaskProgress): void;
@@ -39,28 +39,12 @@ export function containerExt(format: string | null | undefined): string {
   return 'mp4';
 }
 
-function ffmpegAvailable(): boolean {
-  if (!config.ffmpegPath) return false;
-  try {
-    if (!fs.existsSync(config.ffmpegPath)) return false;
-    const stat = fs.statSync(config.ffmpegPath);
-    if (stat.isDirectory()) {
-      const exe = process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg';
-      return fs.existsSync(path.join(config.ffmpegPath, exe));
-    }
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 /**
  * merge=true 时可选择最高清的视频+音频并合并（需要 ffmpeg）。
  * merge=false 时降级为免合并的单文件格式，避免依赖 ffmpeg。
  */
 export function buildFormatSelector(resolution: string | null | undefined, merge: boolean): string {
-  const height = resolution && resolution !== 'best' ? parseInt(resolution, 10) : 0;
-  const h = Number.isFinite(height) && height > 0 ? height : 0;
+  const h = parseTargetHeight(resolution);
   if (merge) {
     if (h === 0) return 'bv*+ba/b';
     return `bv*[height<=${h}]+ba/b[height<=${h}]/b[height<=${h}]`;
@@ -78,14 +62,40 @@ export async function runDownload(
   if (task.simulate) {
     return runSimulatedDownload(task, handlers, controller);
   }
+
+  let result: DownloadResult;
   if (task.platform === 'x' || task.platform === 'bilibili') {
-    return runNativeDownload(task, settings, handlers, controller);
+    result = await runNativeDownload(task, settings, handlers, controller);
+  } else if (task.platform === 'image' || (task.platform === 'instagram' && task.directUrl)) {
+    // 图片直链 / Instagram 图片（已有直链）：直接下载
+    result = await runDirectUrlDownload(
+      task,
+      task.directUrl || task.url,
+      settings,
+      handlers,
+      controller,
+      null,
+    );
+  } else {
+    result = await runYtDlpDownload(task, settings, handlers, controller);
   }
-  // 图片直链 / Instagram 图片（已有直链）：直接下载
-  if (task.platform === 'image' || (task.platform === 'instagram' && task.directUrl)) {
-    return runDirectUrlDownload(task, task.directUrl || task.url, settings, handlers, controller, null);
+
+  if (controller.aborted) {
+    throw new DownloadAbortedError(controller.reason || 'cancelled');
   }
-  return runYtDlpDownload(task, settings, handlers, controller);
+
+  const targetHeight = parseTargetHeight(task.resolution);
+  if (targetHeight > 0) {
+    result = await upscaleMediaIfNeeded(result, targetHeight, {
+      onLog: handlers.onLog,
+      onChild: handlers.onChild,
+    });
+    if (controller.aborted) {
+      throw new DownloadAbortedError(controller.reason || 'cancelled');
+    }
+  }
+
+  return result;
 }
 
 /** X / Bilibili：通过无需登录的原生 API 解析直链后下载 */
@@ -182,6 +192,7 @@ function runDirectUrlDownload(
         if (found) resolve(found);
         else reject(new AppError('OUTPUT', '下载完成但未找到输出文件', 500));
       } else {
+        console.error('[yt-dlp]', stderr.trim().slice(-2000));
         reject(new AppError('DOWNLOAD', friendlyYtDlpError(stderr), 422));
       }
     });
@@ -213,6 +224,8 @@ function runYtDlpDownload(
       buildFormatSelector(task.resolution, merge),
       '--socket-timeout',
       String(Math.max(10, Math.floor(settings.requestTimeoutMs / 1000))),
+      ...ytdlpRuntimeArgs(),
+      ...ytdlpAuthArgs(),
       '-o',
       outTemplate,
     ];
@@ -272,6 +285,7 @@ function runYtDlpDownload(
           else reject(new AppError('OUTPUT', '下载完成但未找到输出文件', 500));
         }
       } else {
+        console.error('[yt-dlp]', stderr.trim().slice(-2000));
         reject(new AppError('DOWNLOAD', friendlyYtDlpError(stderr), 422));
       }
     });
@@ -303,6 +317,7 @@ function findOutputFile(dir: string, id: string): DownloadResult | null {
           !f.endsWith('.part') &&
           !f.endsWith('.ytdl') &&
           !f.includes('.temp') &&
+          !f.includes('.upscale.') &&
           !/\.f\d+\./.test(f),
       );
     if (files.length > 0) {
