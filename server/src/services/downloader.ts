@@ -39,6 +39,10 @@ export function containerExt(format: string | null | undefined): string {
   return 'mp4';
 }
 
+// yt-dlp 的 "download:" 是模板类型名，不会出现在输出里；这里额外加一个真正的输出标记。
+const PROGRESS_MARKER = 'VDMPROGRESS:';
+const PROGRESS_TEMPLATE = `download:${PROGRESS_MARKER}%(progress.downloaded_bytes)s/%(progress.total_bytes)s/%(progress.total_bytes_estimate)s/%(progress.speed)s/%(progress.eta)s`;
+
 /**
  * merge=true 时可选择最高清的视频+音频并合并（需要 ffmpeg）。
  * merge=false 时降级为免合并的单文件格式，避免依赖 ffmpeg。
@@ -148,7 +152,7 @@ function runDirectUrlDownload(
       '--no-mtime',
       '--progress',
       '--progress-template',
-      'download:%(progress.downloaded_bytes)s/%(progress.total_bytes)s/%(progress.total_bytes_estimate)s/%(progress.speed)s/%(progress.eta)s',
+      PROGRESS_TEMPLATE,
       '--socket-timeout',
       String(Math.max(10, Math.floor(settings.requestTimeoutMs / 1000))),
       '-o',
@@ -166,7 +170,7 @@ function runDirectUrlDownload(
     child.stdout.on('data', (d: Buffer) => {
       for (const line of d.toString().split(/\r?\n/)) {
         if (!line) continue;
-        if (line.startsWith('download:')) {
+        if (line.startsWith(PROGRESS_MARKER)) {
           const p = parseProgressLine(line);
           if (p) handlers.onProgress(p);
         } else {
@@ -219,7 +223,7 @@ function runYtDlpDownload(
       '--continue',
       '--progress',
       '--progress-template',
-      'download:%(progress.downloaded_bytes)s/%(progress.total_bytes)s/%(progress.total_bytes_estimate)s/%(progress.speed)s/%(progress.eta)s',
+      PROGRESS_TEMPLATE,
       '-f',
       buildFormatSelector(task.resolution, merge),
       '--socket-timeout',
@@ -250,7 +254,7 @@ function runYtDlpDownload(
       const text = d.toString();
       for (const line of text.split(/\r?\n/)) {
         if (!line) continue;
-        if (line.startsWith('download:')) {
+        if (line.startsWith(PROGRESS_MARKER)) {
           const p = parseProgressLine(line);
           if (p) handlers.onProgress(p);
         } else {
@@ -293,7 +297,7 @@ function runYtDlpDownload(
 }
 
 function parseProgressLine(line: string): TaskProgress | null {
-  const body = line.slice('download:'.length);
+  const body = line.slice(PROGRESS_MARKER.length);
   const parts = body.split('/');
   const num = (s: string | undefined): number | null => {
     if (!s || s === 'NA' || s === 'Unknown') return null;

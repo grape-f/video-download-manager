@@ -12,7 +12,11 @@
 
 ## 已发布
 
-### v1.2.0（当前稳定版）
+### v1.2.1（当前稳定版）
+
+修复下载进度不更新的问题，详见 [CHANGELOG.md](./CHANGELOG.md)。
+
+### v1.2.0
 
 2K 目标清晰度与放大、yt-dlp 登录态支持（cookies.txt / 浏览器自动探测 / Edge 扩展同步）、YouTube JavaScript 运行时与 EJS 修复，详见 [CHANGELOG.md](./CHANGELOG.md)。
 
