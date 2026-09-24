@@ -185,21 +185,6 @@ docker compose up -d
 
 ---
 
-## Edge 扩展登录同步（v1.2.0+）
-
-如果浏览器是 Edge，推荐用项目里的 `browser-extension/` 扩展把登录 cookies 同步给本地下载器。它通过浏览器自己的 cookie 接口读取，不依赖直接打开 Edge 的 `Cookies` 数据库文件，因此 Edge 正在运行也能用。
-
-安装与使用：
-
-1. 打开 `edge://extensions` → 打开「开发者模式」→「加载解压缩的扩展」→ 选择项目里的 `browser-extension` 目录。
-2. 启动后端，打开设置页的「Cookie 同步」卡片，复制配对 token。
-3. 点击扩展图标，填入 `http://127.0.0.1:8787` 和配对 token，点击「保存」。
-4. 在 Edge 登录 YouTube / Instagram / TikTok，点击「同步登录状态」。
-
-凭据优先级：`YTDLP_COOKIES`（手动 cookies.txt）> Edge 扩展同步 > `YTDLP_COOKIES_FROM_BROWSER` > 自动探测浏览器。同步后的 cookies 保存在 `data/extension-cookies.txt`，配对 token 保存在 `data/extension-token.txt`，都在 gitignore 的 `data/` 目录内。同步接口只接受来自 127.0.0.1 的请求；建议把 `.env` 里的 `HOST` 设为 `127.0.0.1`。
-
----
-
 ## 离线测试（模拟源）
 
 当 `ENABLE_SIMULATE=true` 时，可使用 `sim://` 协议创建模拟下载任务，无需网络即可验证完整流程（解析、进度、并发、暂停/继续/取消/重试、恢复、Dashboard 统计等）：
