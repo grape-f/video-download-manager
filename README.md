@@ -173,33 +173,6 @@ GitHub Releases 会提供 `video-download-manager-vX.Y.Z-win-x64.zip`，包内�
 
 ---
 
-## 环境变量配置
-
-复制 `.env.example` 为 `.env`，支持的变量如下：
-
-| 变量 | 默认值 | 说明 |
-| --- | --- | --- |
-| `PORT` | `8787` | 后端服务端口 |
-| `HOST` | `0.0.0.0` | 监听地址 |
-| `DATA_DIR` | `./data` | SQLite 数据库目录（相对项目根） |
-| `DOWNLOAD_DIR` | `./downloads` | 视频下载目录 |
-| `MAX_CONCURRENT` | `3` | 最大并发下载数 |
-| `DEFAULT_QUALITY` | `best` | 默认质量（best/2160p/1440p/1080p/720p/480p/360p，也接受 2k/4k 别名） |
-| `DEFAULT_FORMAT` | `mp4` | 默认格式（mp4/webm/mkv） |
-| `MAX_SPEED` | 空 | 最大下载速度（如 `8M`，空为不限速） |
-| `REQUEST_TIMEOUT_MS` | `120000` | 请求超时（毫秒） |
-| `AUTO_RETRIES` | `3` | 自动重试次数 |
-| `YTDLP_PATH` | `yt-dlp` | yt-dlp 可执行文件路径 |
-| `YTDLP_JS_RUNTIME` | 当前 Node | YouTube 需要的 JavaScript 运行时；默认使用运行后端的 Node 可执行文件，设为 `none` 可关闭 |
-| `YTDLP_REMOTE_COMPONENTS` | `ejs:github` | yt-dlp 外部组件来源；`ejs:github` / `ejs:npm` / `none` |
-| `YTDLP_COOKIES_AUTO` | `true` | 未显式配置 cookies 时，自动探测本机浏览器的 cookies（Edge / Chrome / Firefox / Brave 等）；不想自动读取可设为 `false` |
-| `YTDLP_COOKIES_FROM_BROWSER` | 空 | 可选：手动指定浏览器（如 `chrome` / `edge` / `firefox`），优先于自动探测 |
-| `YTDLP_COOKIES` | 空 | 可选：Netscape 格式 cookies.txt 文件路径（相对项目根目录）；与 `YTDLP_COOKIES_FROM_BROWSER` 同时设置时优先使用它 |
-| `FFMPEG_PATH` | `./bin/ffmpeg` | ffmpeg 所在目录（含 ffmpeg.exe） |
-| `ENABLE_SIMULATE` | `true` | 是否启用模拟源（`sim://` 协议，用于离线测试） |
-
----
-
 ## Docker 部署
 
 ```bash
@@ -224,76 +197,6 @@ docker compose up -d
 4. 在 Edge 登录 YouTube / Instagram / TikTok，点击「同步登录状态」。
 
 凭据优先级：`YTDLP_COOKIES`（手动 cookies.txt）> Edge 扩展同步 > `YTDLP_COOKIES_FROM_BROWSER` > 自动探测浏览器。同步后的 cookies 保存在 `data/extension-cookies.txt`，配对 token 保存在 `data/extension-token.txt`，都在 gitignore 的 `data/` 目录内。同步接口只接受来自 127.0.0.1 的请求；建议把 `.env` 里的 `HOST` 设为 `127.0.0.1`。
-
----
-
-## 项目目录结构
-
-```
-shipin_xiazai/
-├── server/                 # 后端
-│   └── src/
-│       ├── index.ts        # 入口（Express 启动、错误兜底、优雅关闭）
-│       ├── config.ts       # 环境变量与路径配置
-│       ├── db.ts           # SQLite 初始化与仓储
-│       ├── settings.ts     # 设置读写与持久化
-│       ├── bus.ts          # 事件总线（SSE 广播）
-│       ├── types.ts        # 共享类型
-│       ├── services/
-│       │   ├── extractor.ts   # yt-dlp 视频信息解析（含模拟源）
-│       │   ├── native.ts      # X / Instagram / Bilibili 原生解析（无需登录）
-│       │   ├── downloader.ts  # yt-dlp 下载 + 进度解析（含模拟下载）
-│       │   ├── upscale.ts     # ffmpeg/ffprobe 探测与目标清晰度放大
-│       │   └── queue.ts       # 并发任务队列、恢复、持久化
-│       ├── routes/         # parse/tasks/history/dashboard/settings/files/events
-│       └── utils/          # platform/resolution/format/errors/asyncHandler
-├── web/                    # 前端（React + Vite + Tailwind）
-│   └── src/
-│       ├── App.tsx / main.tsx
-│       ├── lib/            # api/store/stats/format/platform/quality
-│       ├── components/     # ui 组件、charts、TaskItem、Layout
-│       └── pages/          # Home/Tasks/History/Dashboard/Settings
-├── browser-extension/      # Edge MV3 扩展：把浏览器登录 cookies 同步给本地服务
-├── e2e/                    # Playwright 端到端测试（使用系统 Edge）
-├── Dockerfile
-├── docker-compose.yml
-└── .env.example
-```
-
----
-
-## API 文档
-
-所有接口前缀 `/api`，返回 JSON；错误统一格式 `{ "error": { "code", "message" } }`。
-
-| 方法 | 路径 | 说明 |
-| --- | --- | --- |
-| POST | `/api/parse` | 解析视频 URL，返回平台与视频信息 |
-| GET | `/api/tasks` | 任务列表 |
-| GET | `/api/tasks/:id` | 任务详情 |
-| POST | `/api/tasks` | 创建下载任务 |
-| POST | `/api/tasks/:id/pause` | 暂停 |
-| POST | `/api/tasks/:id/resume` | 继续 |
-| POST | `/api/tasks/:id/cancel` | 取消 |
-| POST | `/api/tasks/:id/retry` | 重试 |
-| DELETE | `/api/tasks/:id?deleteFile=true` | 删除任务（可选删除文件） |
-| GET | `/api/history?search=&platform=&status=&sort=` | 下载历史（筛选/排序） |
-| DELETE | `/api/history/:id` | 删除历史记录（不删文件） |
-| DELETE | `/api/history` | 批量删除历史记录（body: `{ ids }`） |
-| GET | `/api/dashboard` | 统计概览 |
-| GET | `/api/settings` | 获取设置 |
-| PUT | `/api/settings` | 更新设置 |
-| GET | `/api/system` | 系统状态（版本/数据库/磁盘/ffmpeg/yt-dlp） |
-| POST | `/api/files/open` | 打开文件所在文件夹（body: `{ path }`） |
-| GET | `/api/events` | SSE 实时事件流（task / taskRemoved / settings） |
-
-### 创建任务示例
-
-```bash
-curl -X POST http://localhost:8787/api/tasks \
-  -H 'Content-Type: application/json' \
-  -d '{"url":"https://www.youtube.com/watch?v=xxxx","resolution":"1080p","format":"mp4"}'
-```
 
 ---
 
